@@ -42,16 +42,20 @@ export default function RootLayout({
         {/* ✅ Registo correto do Service Worker */}
         {/* ✅ Registo do Service Worker CORRIGIDO */}
 {/* ✅ Registo do Service Worker CORRIGIDO */}
+        {/* ✅ Registo do Service Worker (Versão Limpa) */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
-              // Repara que agora não tem o ' a seguir a navigator
-              if ('serviceWorker' in navigator) { 
-                window.addEventListener('load', () => {
-                  navigator.serviceWorker
-                    .register('/service-worker.js')
-                    .then(() => console.log('Service Worker registado'))
-                    .catch(err => console.error('SW erro:', err));
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                  navigator.serviceWorker.register('/service-worker.js').then(
+                    function(registration) {
+                      console.log('Service Worker registado com sucesso:', registration.scope);
+                    },
+                    function(err) {
+                      console.log('Falha ao registar Service Worker:', err);
+                    }
+                  );
                 });
               }
             `,

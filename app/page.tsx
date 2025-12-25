@@ -66,7 +66,7 @@ export default function Home() {
       <header className="fixed top-0 w-full bg-white/90 backdrop-blur-md z-10 px-6 py-4 border-b border-gray-200 flex justify-between items-center transition-all">
         <div className="flex items-center gap-2">
           <span className="text-2xl">🍎</span>
-          <h1 className="text-xl font-bold tracking-tight text-black">NutriScan1212</h1>
+          <h1 className="text-xl font-bold tracking-tight text-black">NutriScan</h1>
         </div>
         <div className="w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center border border-gray-200">
           <span className="text-sm">👤</span>
