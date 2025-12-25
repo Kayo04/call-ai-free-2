@@ -1,65 +1,116 @@
-import Image from "next/image";
+'use client';
+
+import { useState, useEffect } from 'react';
+import { Camera, CameraResultType } from '@capacitor/camera';
+import { analisarImagemAction } from '@/app/action'; // <--- Confirma que tens este import!
 
 export default function Home() {
+  const [imagem, setImagem] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [dadosNutricao, setDadosNutricao] = useState<any>(null);
+
+  // Carregar elementos da câmara web
+  useEffect(() => {
+    import('@ionic/pwa-elements/loader').then(loader => {
+      loader.defineCustomElements(window);
+    });
+  }, []);
+
+  const tirarFoto = async () => {
+    try {
+      const image = await Camera.getPhoto({
+        quality: 90,
+        allowEditing: false,
+        resultType: CameraResultType.Base64 
+      });
+
+      if (image.base64String) {
+        setImagem(`data:image/jpeg;base64,${image.base64String}`);
+        // AQUI: Usamos a nova função que chama o servidor
+        processarComida(image.base64String); 
+      }
+    } catch (error) {
+      console.log("Câmara cancelada");
+    }
+  };
+
+  const processarComida = async (base64: string) => {
+    setLoading(true);
+    setDadosNutricao(null);
+
+    try {
+      // Chama a Server Action (Backend)
+      // Isto evita o erro 404 de CORS/Bloqueio da Google
+      const resultado = await analisarImagemAction(base64);
+
+      if (resultado.error) {
+        alert("Erro vindo do servidor: " + resultado.error);
+      } else {
+        setDadosNutricao(resultado.data);
+      }
+
+    } catch (error) {
+      alert("Erro de conexão. Tenta novamente.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="flex flex-col items-center min-h-screen p-4 bg-gray-50 font-sans">
+      <h1 className="text-3xl font-bold text-gray-800 my-6">NutriScan 🍎</h1>
+
+      <div className="w-full max-w-sm h-72 bg-gray-200 rounded-2xl overflow-hidden shadow-inner flex items-center justify-center mb-6 border border-gray-300">
+        {imagem ? (
+          <img src={imagem} alt="Comida" className="w-full h-full object-cover" />
+        ) : (
+          <div className="text-center text-gray-400 p-4">
+            <p className="text-4xl mb-2">📸</p>
+            <p>Tira uma foto à tua refeição</p>
+          </div>
+        )}
+      </div>
+
+      <button 
+        onClick={tirarFoto}
+        disabled={loading}
+        className="w-full max-w-sm bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-lg active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed mb-8"
+      >
+        {loading ? 'A Analisar...' : '📸 Analisar Comida'}
+      </button>
+
+      {dadosNutricao && (
+        <div className="w-full max-w-sm bg-white p-6 rounded-2xl shadow-xl border border-gray-100 animate-fade-in">
+          <h2 className="text-2xl font-bold text-gray-800 mb-1">{dadosNutricao.nome}</h2>
+          <p className="text-gray-500 text-sm mb-4">Peso estimado: {dadosNutricao.peso_estimado}</p>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-orange-50 p-3 rounded-lg border border-orange-100">
+              <p className="text-xs text-orange-600 font-bold uppercase">Calorias</p>
+              <p className="text-xl font-bold text-gray-800">{dadosNutricao.calorias}</p>
+            </div>
+            <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
+              <p className="text-xs text-blue-600 font-bold uppercase">Proteína</p>
+              <p className="text-xl font-bold text-gray-800">{dadosNutricao.proteina}</p>
+            </div>
+            <div className="bg-green-50 p-3 rounded-lg border border-green-100">
+              <p className="text-xs text-green-600 font-bold uppercase">Hidratos</p>
+              <p className="text-xl font-bold text-gray-800">{dadosNutricao.hidratos}</p>
+            </div>
+            <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-100">
+              <p className="text-xs text-yellow-600 font-bold uppercase">Gordura</p>
+              <p className="text-xl font-bold text-gray-800">{dadosNutricao.gordura}</p>
+            </div>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      )}
+      
+      {loading && (
+        <div className="flex flex-col items-center text-gray-500 mt-4">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
+          <p>A consultar o nutricionista AI...</p>
         </div>
-      </main>
+      )}
     </div>
   );
 }
