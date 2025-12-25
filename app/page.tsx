@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Camera, CameraResultType } from '@capacitor/camera';
-import { analisarImagemAction } from '@/app/action'; 
+import { analisarImagemAction } from '@/app/action'; // Confirma se o nome do ficheiro é action ou actions
 
 export default function Home() {
   const [imagem, setImagem] = useState<string | null>(null);
@@ -18,10 +18,7 @@ export default function Home() {
   const tirarFoto = async () => {
     try {
       const photo = await Camera.getPhoto({
-        // 🔓 MODO "SEM LIMITES"
-        quality: 80,       // Boa qualidade, mas com ligeira compressão para não rebentar o servidor
-        // width: 600,     <-- REMOVIDO (Agora usa a largura original)
-        // height: 600,    <-- REMOVIDO (Agora usa a altura original)
+        quality: 80,
         allowEditing: false,
         resultType: CameraResultType.Base64
       });
@@ -40,6 +37,7 @@ export default function Home() {
     setLoading(true);
     setDados(null); 
     
+    // Pequeno delay para a animação
     await new Promise(r => setTimeout(r, 500));
 
     try {
@@ -51,8 +49,7 @@ export default function Home() {
         setDados(resultado.data);
       }
     } catch (error) {
-      // Como a imagem agora é grande, este erro pode acontecer se a net for lenta
-      alert("A foto é muito grande e a conexão falhou. Tenta num sítio com melhor net.");
+      alert("A foto é muito grande ou a net falhou.");
     } finally {
       setLoading(false);
     }
@@ -89,7 +86,7 @@ export default function Home() {
           {loading && (
             <div className="absolute inset-0 bg-black/60 backdrop-blur-md flex flex-col items-center justify-center text-white z-20 transition-all">
               <div className="w-12 h-12 border-[5px] border-white/20 border-t-white rounded-full animate-spin mb-4"></div>
-              <p className="font-semibold tracking-wide animate-pulse">A analisar...</p>
+              <p className="font-semibold tracking-wide animate-pulse">A analisar ingredientes...</p>
             </div>
           )}
         </div>
@@ -97,14 +94,25 @@ export default function Home() {
         {/* RESULTADOS */}
         {dados ? (
           <div className="w-full animate-slide-up space-y-4">
-            <div className="bg-white p-6 rounded-[1.5rem] shadow-sm border border-gray-100 flex justify-between items-start">
-              <div>
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">IDENTIFICADO</p>
-                <h2 className="text-3xl font-black text-gray-900 leading-tight tracking-tight">{dados.nome}</h2>
+            <div className="bg-white p-6 rounded-[1.5rem] shadow-sm border border-gray-100 flex flex-col items-start">
+              
+              <div className="flex justify-between w-full items-start mb-2">
+                <div>
+                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">IDENTIFICADO</p>
+                   <h2 className="text-2xl font-black text-gray-900 leading-tight tracking-tight">{dados.nome}</h2>
+                </div>
+                <span className="bg-green-100 text-green-700 text-xs font-bold px-3 py-1.5 rounded-full mt-1">
+                  {dados.peso_estimado || "1 porção"}
+                </span>
               </div>
-              <span className="bg-green-100 text-green-700 text-xs font-bold px-3 py-1.5 rounded-full mt-1">
-                {dados.peso_estimado || "1 porção"}
-              </span>
+
+              {/* AQUI ESTÁ A NOVA DESCRIÇÃO DETALHADA */}
+              <div className="bg-gray-50 w-full p-3 rounded-xl border border-gray-100 mb-2">
+                 <p className="text-sm text-gray-600 leading-relaxed font-medium">
+                    📝 {dados.descricao}
+                 </p>
+              </div>
+
             </div>
 
             <div className="grid grid-cols-2 gap-3">
