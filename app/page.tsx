@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Camera, CameraResultType } from '@capacitor/camera';
-import { analisarImagemAction } from '@/app/action'; 
+import { analisarImagemAction } from './actions'; 
 
 export default function Home() {
   const [imagem, setImagem] = useState<string | null>(null);
@@ -18,10 +18,10 @@ export default function Home() {
   const tirarFoto = async () => {
     try {
       const photo = await Camera.getPhoto({
-        // 🔧 CONFIGURAÇÃO "DIET" (Corrigida)
-        quality: 50,
-        width: 600,        // Largura máxima
-        height: 600,       // Altura máxima (o Capacitor ajusta sem esticar)
+        // 🔓 MODO "SEM LIMITES"
+        quality: 80,       // Boa qualidade, mas com ligeira compressão para não rebentar o servidor
+        // width: 600,     <-- REMOVIDO (Agora usa a largura original)
+        // height: 600,    <-- REMOVIDO (Agora usa a altura original)
         allowEditing: false,
         resultType: CameraResultType.Base64
       });
@@ -29,9 +29,6 @@ export default function Home() {
       if (photo.base64String) {
         const base64 = `data:image/jpeg;base64,${photo.base64String}`;
         setImagem(base64);
-        
-        // Confirma se a função cá em baixo se chama 'processar' ou 'processarComida'
-        // Tem de ter o mesmo nome aqui!
         processar(base64); 
       }
     } catch (e) { 
@@ -43,7 +40,6 @@ export default function Home() {
     setLoading(true);
     setDados(null); 
     
-    // Pequeno delay para a animação aparecer suavemente
     await new Promise(r => setTimeout(r, 500));
 
     try {
@@ -55,8 +51,8 @@ export default function Home() {
         setDados(resultado.data);
       }
     } catch (error) {
-      // Se der erro aqui, é porque a net falhou ou a imagem ainda é grande demais
-      alert("A foto demorou muito a enviar. Tenta com melhor internet ou aproxima-te mais do router.");
+      // Como a imagem agora é grande, este erro pode acontecer se a net for lenta
+      alert("A foto é muito grande e a conexão falhou. Tenta num sítio com melhor net.");
     } finally {
       setLoading(false);
     }
