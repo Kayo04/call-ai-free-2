@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { Camera, CameraResultType } from '@capacitor/camera';
-import { analisarImagemAction } from '@/app/action'; // <--- Confirma que tens este import!
+// ⚠️ CONFIRMA SE O FICHEIRO SE CHAMA 'action.ts' OU 'actions.ts'
+// Se for 'actions.ts', muda aqui para './actions'
+import { analisarImagemAction } from '@/app/action'; 
 
 export default function Home() {
   const [imagem, setImagem] = useState<string | null>(null);
@@ -18,29 +20,31 @@ export default function Home() {
 
   const tirarFoto = async () => {
     try {
-      const image = await Camera.getPhoto({
-        quality: 90,
+      const photo = await Camera.getPhoto({
+        quality: 60,       // ✅ Ótimo: Qualidade baixa para ser rápido
+        width: 800,        // ✅ Ótimo: Redimensionar para não bloquear
         allowEditing: false,
-        resultType: CameraResultType.Base64 
+        resultType: CameraResultType.Base64,
       });
 
-      if (image.base64String) {
-        setImagem(`data:image/jpeg;base64,${image.base64String}`);
-        // AQUI: Usamos a nova função que chama o servidor
-        processarComida(image.base64String); 
+      if (photo.base64String) {
+        const base64 = `data:image/jpeg;base64,${photo.base64String}`;
+        setImagem(base64);
+        
+        // CORREÇÃO AQUI: Chamamos a função com o nome certo
+        processarComida(base64);
       }
-    } catch (error) {
-      console.log("Câmara cancelada");
+    } catch (e) { 
+      console.log("Câmara cancelada"); 
     }
   };
 
+  // Mantivemos o nome 'processarComida' para ser igual à lógica
   const processarComida = async (base64: string) => {
     setLoading(true);
     setDadosNutricao(null);
 
     try {
-      // Chama a Server Action (Backend)
-      // Isto evita o erro 404 de CORS/Bloqueio da Google
       const resultado = await analisarImagemAction(base64);
 
       if (resultado.error) {
