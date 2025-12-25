@@ -18,12 +18,16 @@ export default function Home() {
   const tirarFoto = async () => {
     try {
       const photo = await Camera.getPhoto({
-        quality: 80,
+        // 📉 REDUZIMOS AQUI PARA NÃO REBENTAR O SERVIDOR
+        quality: 60,       // Qualidade a 60% (Suficiente para a IA ver tudo)
+        width: 1024,       // Largura máxima de 1024px (Isto reduz imenso o peso!)
+        // height: 1024,   // (Opcional: o width já trata de manter a proporção)
         allowEditing: false,
         resultType: CameraResultType.Base64
       });
 
       if (photo.base64String) {
+        // O ficheiro agora será muito mais leve (tipo 200kb em vez de 5MB)
         const base64 = `data:image/jpeg;base64,${photo.base64String}`;
         setImagem(base64);
         processar(base64); 
