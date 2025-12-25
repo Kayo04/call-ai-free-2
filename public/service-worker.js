@@ -5,3 +5,4 @@ self.addEventListener("install", () => {
 self.addEventListener("fetch", () => {
   // sem cache por agora
 });
+  

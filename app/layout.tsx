@@ -40,10 +40,13 @@ export default function RootLayout({
         {children}
 
         {/* ✅ Registo correto do Service Worker */}
+        {/* ✅ Registo do Service Worker CORRIGIDO */}
+{/* ✅ Registo do Service Worker CORRIGIDO */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
-              if ('serviceWorker' in navigator') {
+              // Repara que agora não tem o ' a seguir a navigator
+              if ('serviceWorker' in navigator) { 
                 window.addEventListener('load', () => {
                   navigator.serviceWorker
                     .register('/service-worker.js')
