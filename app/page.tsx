@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Camera, CameraResultType } from '@capacitor/camera';
-import { analisarImagemAction } from './actions'; 
+import { analisarImagemAction } from '@/app/action'; 
 
 export default function Home() {
   const [imagem, setImagem] = useState<string | null>(null);
