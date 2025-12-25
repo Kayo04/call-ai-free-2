@@ -2,15 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { Camera, CameraResultType } from '@capacitor/camera';
-import { analisarImagemAction } from '@/app/action'; // Confirma se o ficheiro é actions.ts
+import { analisarImagemAction } from '@/app/action'; 
 
 export default function Home() {
   const [imagem, setImagem] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [dadosNutricao, setDadosNutricao] = useState<any>(null);
+  const [dados, setDados] = useState<any>(null);
 
   useEffect(() => {
-    // Carrega os drivers da câmara para funcionar no PC e Telemóvel
     import('@ionic/pwa-elements/loader').then(loader => {
       loader.defineCustomElements(window);
     });
@@ -19,121 +18,178 @@ export default function Home() {
   const tirarFoto = async () => {
     try {
       const photo = await Camera.getPhoto({
-        quality: 60,       // ✅ Qualidade média para ser rápido (3G/4G)
-        width: 800,        // ✅ Redimensionar para 800px (poupa 90% dos dados)
+        // ⚠️ AJUSTE CRÍTICO PARA O NOTHING PHONE:
+        quality: 50,       // Baixamos para 50% (imperceptível a olho nu, mas metade do tamanho)
+        width: 600,        // Máximo 600px de largura. A IA não precisa de 4K para ver uma maçã.
         allowEditing: false,
-        resultType: CameraResultType.Base64,
+        resultType: CameraResultType.Base64
       });
 
       if (photo.base64String) {
-        // Criar o formato base64 correto para mostrar no ecrã e enviar
         const base64 = `data:image/jpeg;base64,${photo.base64String}`;
         setImagem(base64);
-        
-        // Chamar a função de processamento
-        processarComida(base64);
+        processar(base64);
       }
     } catch (e) { 
-      console.log("Câmara cancelada pelo utilizador"); 
+      console.log("Câmara cancelada"); 
     }
   };
 
-  const processarComida = async (base64: string) => {
+  const processar = async (base64: string) => {
     setLoading(true);
-    setDadosNutricao(null);
+    setDados(null); 
+    
+    // Pequeno delay estético para a animação fluir
+    await new Promise(r => setTimeout(r, 500));
 
     try {
-      // Envia para o Server Action (Backend)
       const resultado = await analisarImagemAction(base64);
 
       if (resultado.error) {
-        alert("Ops! " + resultado.error);
+        alert("Erro: " + resultado.error);
       } else {
-        setDadosNutricao(resultado.data);
+        setDados(resultado.data);
       }
-
     } catch (error) {
-      console.error(error); // Ajuda a ver o erro real no log
-      alert("Erro de conexão. A imagem pode ser muito pesada ou a net está lenta.");
+      alert("Erro de conexão. A foto é demasiado pesada para a rede.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex flex-col items-center min-h-screen p-4 bg-gray-50 font-sans pb-24">
-      {/* Header Fixo */}
-      <header className="fixed top-0 w-full bg-white/80 backdrop-blur-md z-10 px-6 py-4 shadow-sm flex justify-between items-center">
+    <div className="min-h-screen bg-[#F2F2F7] text-gray-900 font-sans pb-32">
+      
+      {/* --- HEADER --- */}
+      <header className="fixed top-0 w-full bg-white/90 backdrop-blur-md z-10 px-6 py-4 border-b border-gray-200 flex justify-between items-center transition-all">
         <div className="flex items-center gap-2">
           <span className="text-2xl">🍎</span>
-          <h1 className="text-xl font-bold tracking-tight text-gray-900">NutriScan</h1>
+          <h1 className="text-xl font-bold tracking-tight text-black">NutriScan</h1>
+        </div>
+        <div className="w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center border border-gray-200">
+          <span className="text-sm">👤</span>
         </div>
       </header>
 
-      {/* Espaço para o Header não tapar o conteúdo */}
-      <div className="mt-20 w-full max-w-sm">
+      {/* --- ÁREA PRINCIPAL --- */}
+      <main className="pt-24 px-5 flex flex-col items-center w-full max-w-md mx-auto">
         
-        {/* Área da Imagem */}
-        <div className="w-full aspect-square bg-gray-200 rounded-3xl overflow-hidden shadow-inner flex items-center justify-center mb-6 border border-gray-300 relative">
+        {/* CARD DA FOTO */}
+        <div className="relative w-full aspect-square bg-white rounded-[2rem] shadow-sm overflow-hidden border border-gray-100 mb-6">
           {imagem ? (
-            <img src={imagem} alt="Comida" className="w-full h-full object-cover" />
+            <img src={imagem} className="w-full h-full object-cover" alt="Comida" />
           ) : (
-            <div className="text-center text-gray-400 p-4">
-              <p className="text-5xl mb-2">📸</p>
-              <p className="font-medium">Tira uma foto à comida</p>
+            <div className="w-full h-full flex flex-col items-center justify-center text-gray-300 bg-gray-50">
+              <CameraIcon className="w-16 h-16 mb-3 opacity-30" />
+              <p className="font-medium text-gray-400">Nenhuma foto tirada</p>
             </div>
           )}
-          
-          {/* Loading Spinner por cima da imagem */}
+
+          {/* LOADING STATE */}
           {loading && (
-            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center text-white">
-              <div className="w-10 h-10 border-4 border-white/30 border-t-white rounded-full animate-spin mb-3"></div>
-              <p className="font-bold">A analisar...</p>
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-md flex flex-col items-center justify-center text-white z-20 transition-all">
+              <div className="w-12 h-12 border-[5px] border-white/20 border-t-white rounded-full animate-spin mb-4"></div>
+              <p className="font-semibold tracking-wide animate-pulse">A analisar...</p>
             </div>
           )}
         </div>
 
-        {/* Resultados */}
-        {dadosNutricao && (
-          <div className="w-full bg-white p-6 rounded-3xl shadow-xl border border-gray-100 animate-fade-in mb-6">
-            <div className="flex justify-between items-start mb-4">
-              <h2 className="text-2xl font-extrabold text-gray-800">{dadosNutricao.nome}</h2>
-              <span className="bg-gray-100 text-gray-600 text-xs font-bold px-2 py-1 rounded-lg">
-                {dadosNutricao.peso_estimado}
+        {/* --- RESULTADOS --- */}
+        {dados ? (
+          <div className="w-full animate-slide-up space-y-4">
+            
+            {/* Título e Peso */}
+            <div className="bg-white p-6 rounded-[1.5rem] shadow-sm border border-gray-100 flex justify-between items-start">
+              <div>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">IDENTIFICADO</p>
+                <h2 className="text-3xl font-black text-gray-900 leading-tight tracking-tight">{dados.nome}</h2>
+              </div>
+              <span className="bg-green-100 text-green-700 text-xs font-bold px-3 py-1.5 rounded-full mt-1">
+                {dados.peso_estimado || "1 porção"}
               </span>
             </div>
-            
-            <div className="grid grid-cols-2 gap-3">
-              <MacroCard label="Calorias" value={dadosNutricao.calorias} color="bg-orange-50 text-orange-700" />
-              <MacroCard label="Proteína" value={dadosNutricao.proteina} color="bg-blue-50 text-blue-700" />
-              <MacroCard label="Hidratos" value={dadosNutricao.hidratos} color="bg-green-50 text-green-700" />
-              <MacroCard label="Gordura" value={dadosNutricao.gordura} color="bg-yellow-50 text-yellow-700" />
-            </div>
-          </div>
-        )}
-      </div>
 
-      {/* Botão Flutuante */}
-      <div className="fixed bottom-6 left-0 w-full flex justify-center z-20 px-4">
-        <button 
+            {/* Grid de Macros */}
+            <div className="grid grid-cols-2 gap-3">
+              <MacroCard 
+                color="bg-orange-50 border-orange-100 text-orange-600"
+                icon={<FireIcon />}
+                label="Calorias"
+                value={dados.calorias}
+              />
+              <MacroCard 
+                color="bg-blue-50 border-blue-100 text-blue-600"
+                icon={<MuscleIcon />}
+                label="Proteína"
+                value={dados.proteina}
+              />
+              <MacroCard 
+                color="bg-green-50 border-green-100 text-green-600"
+                icon={<WheatIcon />}
+                label="Hidratos"
+                value={dados.hidratos}
+              />
+              <MacroCard 
+                color="bg-yellow-50 border-yellow-100 text-yellow-600"
+                icon={<DropIcon />}
+                label="Gordura"
+                value={dados.gordura}
+              />
+            </div>
+
+            <p className="text-center text-[10px] text-gray-400 mt-4 font-medium uppercase tracking-wide">
+              Powered by AI • Valores Estimados
+            </p>
+
+          </div>
+        ) : (
+          !loading && imagem && (
+            <div className="text-center p-6 text-gray-400 animate-fade-in">
+              <p>👆 Análise concluída.</p>
+            </div>
+          )
+        )}
+      </main>
+
+      {/* --- BOTÃO FLUTUANTE (FAB) --- */}
+      <div className="fixed bottom-8 left-0 w-full flex justify-center z-30 px-6">
+        <button
           onClick={tirarFoto}
           disabled={loading}
-          className="w-full max-w-sm bg-gray-900 hover:bg-black text-white font-bold py-4 rounded-2xl shadow-2xl active:scale-95 transition-all disabled:opacity-70 flex items-center justify-center gap-2"
+          className="w-full max-w-sm bg-black text-white rounded-[1.2rem] py-4 shadow-2xl flex items-center justify-center gap-3 transition-transform active:scale-95 disabled:opacity-80 disabled:scale-100"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-          {imagem ? 'Nova Foto' : 'Escanear Comida'}
+          <CameraIcon className="w-6 h-6" />
+          <span className="font-bold text-lg tracking-tight">
+            {imagem ? 'Nova Foto' : 'Escanear Comida'}
+          </span>
         </button>
       </div>
+
     </div>
   );
 }
 
-// Pequeno componente para limpar o código principal
-function MacroCard({ label, value, color }: any) {
+/* --- COMPONENTES AUXILIARES --- */
+
+function MacroCard({ color, icon, label, value }: any) {
   return (
-    <div className={`${color} p-3 rounded-xl border border-current/10`}>
-      <p className="text-[10px] font-bold uppercase opacity-70 mb-1">{label}</p>
-      <p className="text-xl font-black">{value}</p>
+    <div className={`${color} border p-5 rounded-[1.2rem] flex flex-col items-start shadow-sm transition-transform active:scale-95`}>
+      <div className="mb-3 p-2.5 bg-white rounded-xl shadow-sm">
+        {icon}
+      </div>
+      <p className="text-[10px] font-bold opacity-60 uppercase tracking-wider mb-0.5">{label}</p>
+      <p className="text-2xl font-black tracking-tighter">
+        {value}
+      </p>
     </div>
   );
 }
+
+/* --- ÍCONES SVG --- */
+const CameraIcon = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+);
+const FireIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-2.072-5.714-1-8.571C12.5 1.5 17 6.5 17 12a5 5 0 1 1-10 0c0-1 3-3 3-3"/><path d="M12 14v4"/><path d="M12 2v1"/></svg>);
+const MuscleIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 12c-3 0-4-3-4-3s2-2 3-2 3 2 3 2-1 3-4 3Z"/><path d="M6 5c2-2 4 2 6 7 2-5 4-9 6-7s-5 8-6 12"/></svg>);
+const WheatIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 22 17 7"/><path d="M12 6a2 2 0 0 1 2 2"/><path d="M16.14 8.79a3 3 0 0 1 4.54 1.3"/><path d="M16 11a3 3 0 0 1 3 3"/></svg>);
+const DropIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/></svg>);
