@@ -18,9 +18,10 @@ export default function Home() {
   const tirarFoto = async () => {
     try {
       const photo = await Camera.getPhoto({
-        // ⚠️ AJUSTE CRÍTICO PARA O NOTHING PHONE:
-        quality: 50,       // Baixamos para 50% (imperceptível a olho nu, mas metade do tamanho)
-        width: 600,        // Máximo 600px de largura. A IA não precisa de 4K para ver uma maçã.
+        // 🔧 CONFIGURAÇÃO "DIET" (Corrigida)
+        quality: 50,
+        width: 600,        // Largura máxima
+        height: 600,       // Altura máxima (o Capacitor ajusta sem esticar)
         allowEditing: false,
         resultType: CameraResultType.Base64
       });
@@ -28,7 +29,10 @@ export default function Home() {
       if (photo.base64String) {
         const base64 = `data:image/jpeg;base64,${photo.base64String}`;
         setImagem(base64);
-        processar(base64);
+        
+        // Confirma se a função cá em baixo se chama 'processar' ou 'processarComida'
+        // Tem de ter o mesmo nome aqui!
+        processar(base64); 
       }
     } catch (e) { 
       console.log("Câmara cancelada"); 
@@ -39,7 +43,7 @@ export default function Home() {
     setLoading(true);
     setDados(null); 
     
-    // Pequeno delay estético para a animação fluir
+    // Pequeno delay para a animação aparecer suavemente
     await new Promise(r => setTimeout(r, 500));
 
     try {
@@ -51,7 +55,8 @@ export default function Home() {
         setDados(resultado.data);
       }
     } catch (error) {
-      alert("Erro de conexão. A foto é demasiado pesada para a rede.");
+      // Se der erro aqui, é porque a net falhou ou a imagem ainda é grande demais
+      alert("A foto demorou muito a enviar. Tenta com melhor internet ou aproxima-te mais do router.");
     } finally {
       setLoading(false);
     }
@@ -60,7 +65,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-[#F2F2F7] text-gray-900 font-sans pb-32">
       
-      {/* --- HEADER --- */}
+      {/* HEADER */}
       <header className="fixed top-0 w-full bg-white/90 backdrop-blur-md z-10 px-6 py-4 border-b border-gray-200 flex justify-between items-center transition-all">
         <div className="flex items-center gap-2">
           <span className="text-2xl">🍎</span>
@@ -71,21 +76,20 @@ export default function Home() {
         </div>
       </header>
 
-      {/* --- ÁREA PRINCIPAL --- */}
+      {/* ÁREA PRINCIPAL */}
       <main className="pt-24 px-5 flex flex-col items-center w-full max-w-md mx-auto">
         
-        {/* CARD DA FOTO */}
+        {/* FOTO */}
         <div className="relative w-full aspect-square bg-white rounded-[2rem] shadow-sm overflow-hidden border border-gray-100 mb-6">
           {imagem ? (
             <img src={imagem} className="w-full h-full object-cover" alt="Comida" />
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center text-gray-300 bg-gray-50">
               <CameraIcon className="w-16 h-16 mb-3 opacity-30" />
-              <p className="font-medium text-gray-400">Nenhuma foto tirada</p>
+              <p className="font-medium text-gray-400">Tira foto ao prato</p>
             </div>
           )}
 
-          {/* LOADING STATE */}
           {loading && (
             <div className="absolute inset-0 bg-black/60 backdrop-blur-md flex flex-col items-center justify-center text-white z-20 transition-all">
               <div className="w-12 h-12 border-[5px] border-white/20 border-t-white rounded-full animate-spin mb-4"></div>
@@ -94,11 +98,9 @@ export default function Home() {
           )}
         </div>
 
-        {/* --- RESULTADOS --- */}
+        {/* RESULTADOS */}
         {dados ? (
           <div className="w-full animate-slide-up space-y-4">
-            
-            {/* Título e Peso */}
             <div className="bg-white p-6 rounded-[1.5rem] shadow-sm border border-gray-100 flex justify-between items-start">
               <div>
                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">IDENTIFICADO</p>
@@ -109,38 +111,12 @@ export default function Home() {
               </span>
             </div>
 
-            {/* Grid de Macros */}
             <div className="grid grid-cols-2 gap-3">
-              <MacroCard 
-                color="bg-orange-50 border-orange-100 text-orange-600"
-                icon={<FireIcon />}
-                label="Calorias"
-                value={dados.calorias}
-              />
-              <MacroCard 
-                color="bg-blue-50 border-blue-100 text-blue-600"
-                icon={<MuscleIcon />}
-                label="Proteína"
-                value={dados.proteina}
-              />
-              <MacroCard 
-                color="bg-green-50 border-green-100 text-green-600"
-                icon={<WheatIcon />}
-                label="Hidratos"
-                value={dados.hidratos}
-              />
-              <MacroCard 
-                color="bg-yellow-50 border-yellow-100 text-yellow-600"
-                icon={<DropIcon />}
-                label="Gordura"
-                value={dados.gordura}
-              />
+              <MacroCard color="bg-orange-50 border-orange-100 text-orange-600" icon={<FireIcon />} label="Calorias" value={dados.calorias} />
+              <MacroCard color="bg-blue-50 border-blue-100 text-blue-600" icon={<MuscleIcon />} label="Proteína" value={dados.proteina} />
+              <MacroCard color="bg-green-50 border-green-100 text-green-600" icon={<WheatIcon />} label="Hidratos" value={dados.hidratos} />
+              <MacroCard color="bg-yellow-50 border-yellow-100 text-yellow-600" icon={<DropIcon />} label="Gordura" value={dados.gordura} />
             </div>
-
-            <p className="text-center text-[10px] text-gray-400 mt-4 font-medium uppercase tracking-wide">
-              Powered by AI • Valores Estimados
-            </p>
-
           </div>
         ) : (
           !loading && imagem && (
@@ -151,7 +127,7 @@ export default function Home() {
         )}
       </main>
 
-      {/* --- BOTÃO FLUTUANTE (FAB) --- */}
+      {/* BOTÃO */}
       <div className="fixed bottom-8 left-0 w-full flex justify-center z-30 px-6">
         <button
           onClick={tirarFoto}
@@ -169,26 +145,18 @@ export default function Home() {
   );
 }
 
-/* --- COMPONENTES AUXILIARES --- */
-
+/* --- ÍCONES E COMPONENTES --- */
 function MacroCard({ color, icon, label, value }: any) {
   return (
     <div className={`${color} border p-5 rounded-[1.2rem] flex flex-col items-start shadow-sm transition-transform active:scale-95`}>
-      <div className="mb-3 p-2.5 bg-white rounded-xl shadow-sm">
-        {icon}
-      </div>
+      <div className="mb-3 p-2.5 bg-white rounded-xl shadow-sm">{icon}</div>
       <p className="text-[10px] font-bold opacity-60 uppercase tracking-wider mb-0.5">{label}</p>
-      <p className="text-2xl font-black tracking-tighter">
-        {value}
-      </p>
+      <p className="text-2xl font-black tracking-tighter">{value}</p>
     </div>
   );
 }
 
-/* --- ÍCONES SVG --- */
-const CameraIcon = ({ className }: { className?: string }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
-);
+const CameraIcon = ({ className }: { className?: string }) => (<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>);
 const FireIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-2.072-5.714-1-8.571C12.5 1.5 17 6.5 17 12a5 5 0 1 1-10 0c0-1 3-3 3-3"/><path d="M12 14v4"/><path d="M12 2v1"/></svg>);
 const MuscleIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 12c-3 0-4-3-4-3s2-2 3-2 3 2 3 2-1 3-4 3Z"/><path d="M6 5c2-2 4 2 6 7 2-5 4-9 6-7s-5 8-6 12"/></svg>);
 const WheatIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 22 17 7"/><path d="M12 6a2 2 0 0 1 2 2"/><path d="M16.14 8.79a3 3 0 0 1 4.54 1.3"/><path d="M16 11a3 3 0 0 1 3 3"/></svg>);

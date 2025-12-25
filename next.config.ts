@@ -3,7 +3,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   experimental: {
     serverActions: {
-      bodySizeLimit: '5mb', // Aumentei para 5MB para ser seguro
+      bodySizeLimit: '4mb', // ⚠️ Aumentamos o limite para 4MB (o máximo seguro da Vercel)
     },
   },
 };
