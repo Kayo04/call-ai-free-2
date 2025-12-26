@@ -12,11 +12,21 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-// ✅ Metadata da PWA
+// ✅ Metadata da PWA (AGORA COM SUPORTE IPHONE)
 export const metadata: Metadata = {
   title: "NutriScan",
   description: "Análise nutricional inteligente",
   manifest: "/manifest.json",
+  // 👇 CONFIGURAÇÕES NOVAS PARA IPHONE
+  appleWebApp: {
+    capable: true, // Faz o site abrir como app (sem barras do Safari)
+    statusBarStyle: "black-translucent", // Barra de topo transparente/preta
+    title: "NutriScan",
+  },
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/Musab.jpg", // 👈 O iPhone vai usar a tua foto como ícone!
+  },
 };
 
 // ✅ Viewport (modo app nativa)
@@ -25,6 +35,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
+  userScalable: false, // Impede o zoom com os dedos (parece mais app nativa)
 };
 
 export default function RootLayout({
@@ -39,10 +50,7 @@ export default function RootLayout({
       >
         {children}
 
-        {/* ✅ Registo correto do Service Worker */}
-        {/* ✅ Registo do Service Worker CORRIGIDO */}
-{/* ✅ Registo do Service Worker CORRIGIDO */}
-        {/* ✅ Registo do Service Worker (Versão Limpa) */}
+        {/* ✅ Registo do Service Worker (Versão Final Limpa) */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -50,10 +58,10 @@ export default function RootLayout({
                 window.addEventListener('load', function() {
                   navigator.serviceWorker.register('/service-worker.js').then(
                     function(registration) {
-                      console.log('Service Worker registado com sucesso:', registration.scope);
+                      console.log('Service Worker registado:', registration.scope);
                     },
                     function(err) {
-                      console.log('Falha ao registar Service Worker:', err);
+                      console.log('Falha SW:', err);
                     }
                   );
                 });

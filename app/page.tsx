@@ -18,10 +18,10 @@ export default function Home() {
   const tirarFoto = async () => {
     try {
       const photo = await Camera.getPhoto({
-        // 📉 REDUZIMOS AQUI PARA NÃO REBENTAR O SERVIDOR
-        quality: 60,       // Qualidade a 60% (Suficiente para a IA ver tudo)
-        width: 1024,       // Largura máxima de 1024px (Isto reduz imenso o peso!)
-        // height: 1024,   // (Opcional: o width já trata de manter a proporção)
+        // 👇 MUDANÇAS AQUI:
+        quality: 50,       // Baixamos para 50% (metade do peso)
+        width: 600,        // Baixamos para 600px (muito mais leve e rápido)
+        // height: 600,    // (Deixa comentado, o width trata de tudo)
         allowEditing: false,
         resultType: CameraResultType.Base64
       });
