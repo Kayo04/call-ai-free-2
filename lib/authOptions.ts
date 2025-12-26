@@ -35,6 +35,8 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   session: { strategy: "jwt" },
+  // ... (início do ficheiro igual)
+
   callbacks: {
     async session({ session, token }) {
       if (session?.user) {
@@ -45,14 +47,25 @@ export const authOptions: NextAuthOptions = {
       }
       return session;
     },
-    async jwt({ token, user }) {
+    
+    // 👇 AQUI É A MUDANÇA IMPORTANTE
+    async jwt({ token, user, trigger, session }) {
+      // 1. No Login inicial
       if (user) {
         // @ts-ignore
         token.onboardingCompleted = user.onboardingCompleted;
       }
+
+      // 2. Quando chamamos update() no frontend
+      if (trigger === "update" && session?.onboardingCompleted) {
+        token.onboardingCompleted = session.onboardingCompleted;
+      }
+
       return token;
     },
   },
+  
+// ... (resto do ficheiro igual)
   pages: { signIn: '/login' },
   secret: process.env.NEXTAUTH_SECRET,
 };

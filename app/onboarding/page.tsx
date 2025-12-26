@@ -36,9 +36,10 @@ export default function OnboardingPage() {
       });
 
       if (res.ok) {
-        // Força a atualização da sessão para saber que o onboarding está feito
-        await update(); 
-        router.push('/'); // Manda para a Home
+        // 👇 AQUI A MUDANÇA: Avisamos a sessão que mudou para TRUE
+        await update({ onboardingCompleted: true });
+        
+        router.push('/'); 
         router.refresh();
       }
     } catch (error) {
