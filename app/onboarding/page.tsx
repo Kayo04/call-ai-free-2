@@ -35,10 +35,15 @@ export default function OnboardingPage() {
         body: JSON.stringify(formData),
       });
 
+      const data = await res.json(); // 👇 LER OS DADOS QUE A API DEVOLVEU (CALORIAS)
+
       if (res.ok) {
-        // 👇 AQUI A MUDANÇA: Avisamos a sessão que mudou para TRUE
-        await update({ onboardingCompleted: true });
-        
+        // 👇 AVISAMOS A SESSÃO QUE ACABOU E PASSAMOS AS NOVAS METAS
+        await update({ 
+            onboardingCompleted: true,
+            goals: data.goals 
+        });
+            
         router.push('/'); 
         router.refresh();
       }

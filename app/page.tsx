@@ -163,6 +163,42 @@ export default function Home() {
       {/* --- ÁREA PRINCIPAL --- */}
       <main className="pt-28 px-6 flex flex-col items-center w-full max-w-md mx-auto">
         
+        {/* --- O TEU PLANO DIÁRIO (META) --- */}
+        {/* @ts-ignore */}
+        {session?.user?.goals && (
+          <div className="w-full bg-black text-white p-6 rounded-[2rem] shadow-xl shadow-black/10 mb-8 animate-fade-in-up">
+            <div className="flex justify-between items-start mb-6">
+              <div>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">META DIÁRIA</p>
+                {/* @ts-ignore */}
+                <h2 className="text-5xl font-black tracking-tighter">{session.user.goals.calories} <span className="text-xl text-gray-500 font-bold">kcal</span></h2>
+              </div>
+              <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center text-2xl animate-pulse">
+                🔥
+              </div>
+            </div>
+
+            {/* Mini Macros */}
+            <div className="grid grid-cols-3 gap-3">
+              <div className="bg-white/10 p-3 rounded-2xl border border-white/5">
+                <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Proteína</p>
+                {/* @ts-ignore */}
+                <p className="text-lg font-bold">{session.user.goals.protein}g</p>
+              </div>
+              <div className="bg-white/10 p-3 rounded-2xl border border-white/5">
+                <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Carbs</p>
+                {/* @ts-ignore */}
+                <p className="text-lg font-bold">{session.user.goals.carbs}g</p>
+              </div>
+              <div className="bg-white/10 p-3 rounded-2xl border border-white/5">
+                <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Gordura</p>
+                {/* @ts-ignore */}
+                <p className="text-lg font-bold">{session.user.goals.fat}g</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Cartão da Foto */}
         <div className="relative w-full aspect-square bg-white rounded-[2.5rem] shadow-sm overflow-hidden border border-white mb-6">
           {imagem ? (

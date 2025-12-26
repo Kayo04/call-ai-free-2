@@ -1,4 +1,3 @@
-// lib/authOptions.ts
 import { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
@@ -35,37 +34,41 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   session: { strategy: "jwt" },
-  // ... (início do ficheiro igual)
-
   callbacks: {
     async session({ session, token }) {
       if (session?.user) {
         // @ts-ignore
         session.user.id = token.sub;
         // @ts-ignore
-        session.user.onboardingCompleted = token.onboardingCompleted; 
+        session.user.onboardingCompleted = token.onboardingCompleted;
+        // @ts-ignore
+        session.user.goals = token.goals; // 👇 GUARDAR METAS NA SESSÃO
       }
       return session;
     },
     
-    // 👇 AQUI É A MUDANÇA IMPORTANTE
     async jwt({ token, user, trigger, session }) {
       // 1. No Login inicial
       if (user) {
         // @ts-ignore
         token.onboardingCompleted = user.onboardingCompleted;
+        // @ts-ignore
+        token.goals = user.goals; // 👇 GUARDAR METAS NO TOKEN
       }
 
       // 2. Quando chamamos update() no frontend
-      if (trigger === "update" && session?.onboardingCompleted) {
-        token.onboardingCompleted = session.onboardingCompleted;
+      if (trigger === "update" && session) {
+        if (session.onboardingCompleted !== undefined) {
+            token.onboardingCompleted = session.onboardingCompleted;
+        }
+        if (session.goals) {
+            token.goals = session.goals; // 👇 ATUALIZAR METAS SE VIEREM DO FRONTEND
+        }
       }
 
       return token;
     },
   },
-  
-// ... (resto do ficheiro igual)
   pages: { signIn: '/login' },
   secret: process.env.NEXTAUTH_SECRET,
 };
