@@ -10,25 +10,22 @@ export default function Home() {
   const { data: session, status } = useSession();
   const router = useRouter();
 
-  // Estados da App
   const [imagem, setImagem] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [dados, setDados] = useState<any>(null);
-  
-  // Estado do Menu Settings
   const [showSettings, setShowSettings] = useState(false);
 
-  // 1. VERIFICAR SE O USER JÁ FEZ O ONBOARDING
+  // Redirecionar se não fez onboarding
   useEffect(() => {
     if (status === 'authenticated' && session?.user) {
-      // @ts-ignore (O TypeScript às vezes reclama do onboardingCompleted, mas ele existe)
+      // @ts-ignore
       if (session.user.onboardingCompleted === false) {
         router.push('/onboarding');
       }
     }
   }, [session, status, router]);
 
-  // Inicializar PWA Elements (para a câmara funcionar na web se precisares)
+  // Carregar ícones da câmara
   useEffect(() => {
     import('@ionic/pwa-elements/loader').then(loader => {
       loader.defineCustomElements(window);
@@ -38,98 +35,52 @@ export default function Home() {
   const tirarFoto = async () => {
     try {
       const photo = await Camera.getPhoto({
-        quality: 50,
-        width: 600,
-        allowEditing: false,
-        resultType: CameraResultType.Base64
+        quality: 50, width: 600, allowEditing: false, resultType: CameraResultType.Base64
       });
-
       if (photo.base64String) {
         const base64 = `data:image/jpeg;base64,${photo.base64String}`;
         setImagem(base64);
         processar(base64); 
       }
-    } catch (e) { 
-      console.log("Câmara cancelada"); 
-    }
+    } catch (e) { console.log("Câmara cancelada"); }
   };
 
   const processar = async (base64: string) => {
-    setLoading(true);
-    setDados(null); 
-    await new Promise(r => setTimeout(r, 500)); // Pequena pausa dramática
-
+    setLoading(true); setDados(null); 
+    await new Promise(r => setTimeout(r, 500)); 
     try {
       const resultado = await analisarImagemAction(base64);
-      if (resultado.error) {
-        alert("Erro: " + resultado.error);
-      } else {
-        setDados(resultado.data);
-      }
-    } catch (error) {
-      alert("Erro na análise.");
-    } finally {
-      setLoading(false);
-    }
+      if (resultado.error) alert("Erro: " + resultado.error);
+      else setDados(resultado.data);
+    } catch (error) { alert("Erro na análise."); } finally { setLoading(false); }
   };
 
   return (
     <div className="min-h-screen bg-[#F2F2F7] text-gray-900 font-sans pb-32 relative overflow-hidden">
       
-      {/* --- MENU SETTINGS (GAVETA LATERAL) --- */}
+      {/* MENU SETTINGS */}
       {showSettings && (
         <div className="fixed inset-0 z-50 flex justify-end">
-          {/* Fundo escuro (clica para fechar) */}
-          <div 
-            className="absolute inset-0 bg-black/30 backdrop-blur-sm transition-opacity" 
-            onClick={() => setShowSettings(false)}
-          ></div>
-          
-          {/* O Menu deslizante */}
+          <div className="absolute inset-0 bg-black/30 backdrop-blur-sm transition-opacity" onClick={() => setShowSettings(false)}></div>
           <div className="relative w-[85%] max-w-sm h-full bg-white shadow-2xl p-6 flex flex-col animate-slide-left">
-            
-            {/* Topo do Menu */}
             <div className="flex items-center justify-between mb-10">
               <h2 className="text-2xl font-black tracking-tight">Definições</h2>
-              <button 
-                onClick={() => setShowSettings(false)} 
-                className="w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center text-gray-500 font-bold"
-              >
-                ✕
-              </button>
+              <button onClick={() => setShowSettings(false)} className="w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center text-gray-500 font-bold">✕</button>
             </div>
-
-            {/* Cartão de Perfil */}
             <div className="flex flex-col items-center mb-8 p-6 bg-gray-50 rounded-[2rem] border border-gray-100">
               <div className="relative w-24 h-24 mb-4">
-                <img 
-                  src={session?.user?.image || "https://ui-avatars.com/api/?name=User&background=random"} 
-                  className="w-full h-full rounded-full border-4 border-white shadow-sm object-cover"
-                />
+                <img src={session?.user?.image || "https://ui-avatars.com/api/?name=User&background=random"} className="w-full h-full rounded-full border-4 border-white shadow-sm object-cover"/>
               </div>
               <h3 className="text-xl font-black text-gray-900">{session?.user?.name || "Utilizador"}</h3>
               <p className="text-sm text-gray-500 font-medium">{session?.user?.email}</p>
             </div>
-
-            {/* Opções */}
             <div className="space-y-3">
-               <button 
-                 onClick={() => router.push('/onboarding')} 
-                 className="w-full flex items-center gap-4 p-4 rounded-2xl bg-white border-2 border-gray-100 font-bold text-gray-700 hover:border-black hover:text-black transition-all"
-               >
-                 <span className="text-xl">✏️</span>
-                 Editar as minhas Metas
+               <button onClick={() => router.push('/onboarding')} className="w-full flex items-center gap-4 p-4 rounded-2xl bg-white border-2 border-gray-100 font-bold text-gray-700 hover:border-black hover:text-black transition-all">
+                 <span className="text-xl">✏️</span> Editar as minhas Metas
                </button>
-               
-               {/* Podes adicionar mais botões aqui (Histórico, Dieta, etc) */}
             </div>
-
-            {/* Botão de Logout (No fundo) */}
             <div className="mt-auto">
-              <button 
-                onClick={() => signOut()} 
-                className="w-full p-5 rounded-2xl bg-red-50 text-red-600 font-bold flex items-center justify-center gap-2 hover:bg-red-100 transition-colors"
-              >
+              <button onClick={() => signOut()} className="w-full p-5 rounded-2xl bg-red-50 text-red-600 font-bold flex items-center justify-center gap-2 hover:bg-red-100 transition-colors">
                 <LogOutIcon className="w-5 h-5"/> Terminar Sessão
               </button>
               <p className="text-center text-xs text-gray-300 mt-4 font-bold tracking-widest uppercase">NutriScan v1.0</p>
@@ -138,34 +89,24 @@ export default function Home() {
         </div>
       )}
 
-      {/* --- HEADER PRINCIPAL --- */}
+      {/* HEADER */}
       <header className="fixed top-0 w-full bg-white/85 backdrop-blur-xl z-20 px-6 py-4 border-b border-gray-200/50 flex justify-between items-center">
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 bg-black rounded-xl flex items-center justify-center text-lg shadow-sm">
-            🍎
-          </div>
+          <div className="w-9 h-9 bg-black rounded-xl flex items-center justify-center text-lg shadow-sm">🍎</div>
           <h1 className="text-lg font-black tracking-tight text-gray-900">NutriScan</h1>
         </div>
-
-        {/* Botão da Foto de Perfil (Abre Settings) */}
-        <button 
-          onClick={() => setShowSettings(true)} 
-          className="w-10 h-10 rounded-full bg-gray-100 overflow-hidden border-2 border-white shadow-sm active:scale-95 transition-transform"
-        >
+        <button onClick={() => setShowSettings(true)} className="w-10 h-10 rounded-full bg-gray-100 overflow-hidden border-2 border-white shadow-sm active:scale-95 transition-transform">
            {session?.user?.image ? (
             <img src={session.user.image} alt="Perfil" className="w-full h-full object-cover"/>
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-gray-400">👤</div>
-          )}
+          ) : (<div className="w-full h-full flex items-center justify-center text-gray-400">👤</div>)}
         </button>
       </header>
 
-      {/* --- ÁREA PRINCIPAL --- */}
       <main className="pt-28 px-6 flex flex-col items-center w-full max-w-md mx-auto">
         
-        {/* --- O TEU PLANO DIÁRIO (META) --- */}
+        {/* METAS DIÁRIAS (Preto) - SÓ APARECE SE HOUVER GOALS */}
         {/* @ts-ignore */}
-        {session?.user?.goals && (
+        {session?.user?.goals && session.user.goals.calories > 0 && (
           <div className="w-full bg-black text-white p-6 rounded-[2rem] shadow-xl shadow-black/10 mb-8 animate-fade-in-up">
             <div className="flex justify-between items-start mb-6">
               <div>
@@ -173,12 +114,9 @@ export default function Home() {
                 {/* @ts-ignore */}
                 <h2 className="text-5xl font-black tracking-tighter">{session.user.goals.calories} <span className="text-xl text-gray-500 font-bold">kcal</span></h2>
               </div>
-              <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center text-2xl animate-pulse">
-                🔥
-              </div>
+              <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center text-2xl animate-pulse">🔥</div>
             </div>
 
-            {/* Mini Macros */}
             <div className="grid grid-cols-3 gap-3">
               <div className="bg-white/10 p-3 rounded-2xl border border-white/5">
                 <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Proteína</p>
@@ -199,7 +137,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* Cartão da Foto */}
+        {/* CÂMARA */}
         <div className="relative w-full aspect-square bg-white rounded-[2.5rem] shadow-sm overflow-hidden border border-white mb-6">
           {imagem ? (
             <img src={imagem} className="w-full h-full object-cover" alt="Comida" />
@@ -211,7 +149,6 @@ export default function Home() {
               <p className="font-bold text-gray-400 text-sm">Tira uma foto à tua refeição</p>
             </div>
           )}
-
           {loading && (
             <div className="absolute inset-0 bg-black/60 backdrop-blur-md flex flex-col items-center justify-center text-white z-20 animate-fade-in">
               <div className="w-12 h-12 border-[5px] border-white/20 border-t-white rounded-full animate-spin mb-5"></div>
@@ -220,11 +157,9 @@ export default function Home() {
           )}
         </div>
 
-        {/* Resultados da IA */}
+        {/* RESULTADOS */}
         {dados && (
           <div className="w-full animate-slide-up space-y-4 pb-20">
-            
-            {/* Título e Descrição */}
             <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
               <div className="flex justify-between items-start mb-3">
                 <div>
@@ -235,15 +170,10 @@ export default function Home() {
                   {dados.peso_estimado || "1 porção"}
                 </span>
               </div>
-              
               <div className="pt-3 border-t border-gray-50 mt-2">
-                <p className="text-sm text-gray-600 leading-relaxed font-medium">
-                   {dados.descricao}
-                </p>
+                <p className="text-sm text-gray-600 leading-relaxed font-medium">{dados.descricao}</p>
               </div>
             </div>
-
-            {/* Grelha de Macros */}
             <div className="grid grid-cols-2 gap-3">
               <MacroCard color="bg-orange-50 text-orange-600" icon={<FireIcon />} label="Calorias" value={dados.calorias} unit="kcal" />
               <MacroCard color="bg-blue-50 text-blue-600" icon={<MuscleIcon />} label="Proteína" value={dados.proteina} unit="g" />
@@ -254,26 +184,17 @@ export default function Home() {
         )}
       </main>
 
-      {/* --- BOTÃO FLUTUANTE DE AÇÃO --- */}
       <div className="fixed bottom-8 left-0 w-full flex justify-center z-30 px-6 pointer-events-none">
-        <button
-          onClick={tirarFoto}
-          disabled={loading}
-          className="pointer-events-auto w-full max-w-sm bg-black text-white h-16 rounded-[2rem] shadow-2xl shadow-black/20 flex items-center justify-center gap-3 transition-all active:scale-95 hover:bg-gray-900 disabled:opacity-80 disabled:scale-100"
-        >
+        <button onClick={tirarFoto} disabled={loading} className="pointer-events-auto w-full max-w-sm bg-black text-white h-16 rounded-[2rem] shadow-2xl shadow-black/20 flex items-center justify-center gap-3 transition-all active:scale-95 hover:bg-gray-900 disabled:opacity-80 disabled:scale-100">
           <CameraIcon className="w-6 h-6" />
-          <span className="font-bold text-lg tracking-tight">
-            {imagem ? 'Nova Foto' : 'Escanear'}
-          </span>
+          <span className="font-bold text-lg tracking-tight">{imagem ? 'Nova Foto' : 'Escanear'}</span>
         </button>
       </div>
-
     </div>
   );
 }
 
-/* --- COMPONENTES VISUAIS AUXILIARES --- */
-
+// COMPONENTES AUXILIARES E ÍCONES
 function MacroCard({ color, icon, label, value, unit }: any) {
   return (
     <div className={`${color} p-5 rounded-[1.8rem] flex flex-col items-start transition-transform active:scale-95`}>
@@ -289,7 +210,6 @@ function MacroCard({ color, icon, label, value, unit }: any) {
   );
 }
 
-// Ícones SVG Limpos
 const CameraIcon = ({ className }: { className?: string }) => (<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>);
 const LogOutIcon = ({ className }: { className?: string }) => (<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>);
 const FireIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-2.072-5.714-1-8.571C12.5 1.5 17 6.5 17 12a5 5 0 1 1-10 0c0-1 3-3 3-3"/><path d="M12 14v4"/><path d="M12 2v1"/></svg>);

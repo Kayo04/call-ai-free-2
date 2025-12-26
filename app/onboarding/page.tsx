@@ -1,27 +1,41 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const { update } = useSession(); // Para atualizar a sessão localmente depois de salvar
+  const { update } = useSession(); 
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [weeksUntilGoal, setWeeksUntilGoal] = useState<number | null>(null);
 
   const [formData, setFormData] = useState({
     gender: 'male',
     age: '',
-    height: '', // em cm
-    weight: '', // em kg
+    height: '', 
+    weight: '', 
+    targetWeight: '', 
     activity: 'sedentary',
     goal: 'lose',
-    speed: 'normal' // normal = devagar, fast = rápido
+    targetDate: ''    
   });
 
   const handleChange = (field: string, value: any) => {
-    setFormData({ ...formData, [field]: value });
+    setFormData(prev => {
+      const newData = { ...prev, [field]: value };
+      
+      if (field === 'targetDate' && value) {
+        const today = new Date();
+        const target = new Date(value);
+        const diffTime = target.getTime() - today.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        const weeks = Math.max(1, Math.round(diffDays / 7)); 
+        setWeeksUntilGoal(weeks);
+      }
+      return newData;
+    });
   };
 
   const handleNext = () => setStep(step + 1);
@@ -35,17 +49,18 @@ export default function OnboardingPage() {
         body: JSON.stringify(formData),
       });
 
-      const data = await res.json(); // 👇 LER OS DADOS QUE A API DEVOLVEU (CALORIAS)
+      const data = await res.json(); 
 
       if (res.ok) {
-        // 👇 AVISAMOS A SESSÃO QUE ACABOU E PASSAMOS AS NOVAS METAS
+        // Atualiza sessão e redireciona
         await update({ 
             onboardingCompleted: true,
             goals: data.goals 
         });
-            
         router.push('/'); 
         router.refresh();
+      } else {
+        alert("Erro: " + data.message);
       }
     } catch (error) {
       alert("Erro ao guardar dados");
@@ -77,15 +92,11 @@ export default function OnboardingPage() {
               <button 
                 onClick={() => handleChange('gender', 'male')}
                 className={`flex-1 p-4 rounded-2xl border-2 font-bold transition-all ${formData.gender === 'male' ? 'border-black bg-black text-white' : 'border-gray-100 text-gray-400'}`}
-              >
-                Homem
-              </button>
+              >Homem</button>
               <button 
                 onClick={() => handleChange('gender', 'female')}
                 className={`flex-1 p-4 rounded-2xl border-2 font-bold transition-all ${formData.gender === 'female' ? 'border-black bg-black text-white' : 'border-gray-100 text-gray-400'}`}
-              >
-                Mulher
-              </button>
+              >Mulher</button>
             </div>
 
             <label className="block text-xs font-bold uppercase text-gray-400 mb-2">Idade</label>
@@ -103,7 +114,7 @@ export default function OnboardingPage() {
         {step === 2 && (
           <div className="animate-fade-in-up">
             <h1 className="text-3xl font-black mb-2">As tuas medidas</h1>
-            <p className="text-gray-500 mb-8">Sê o mais preciso possível.</p>
+            <p className="text-gray-500 mb-8">Peso atual e altura.</p>
             
             <div className="mb-6">
               <label className="block text-xs font-bold uppercase text-gray-400 mb-2">Altura (cm)</label>
@@ -117,7 +128,7 @@ export default function OnboardingPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase text-gray-400 mb-2">Peso (kg)</label>
+              <label className="block text-xs font-bold uppercase text-gray-400 mb-2">Peso Atual (kg)</label>
               <input 
                 type="number" 
                 value={formData.weight}
@@ -155,11 +166,11 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        {/* --- PASSO 4: Objetivo --- */}
+        {/* --- PASSO 4: Objetivo e DATA --- */}
         {step === 4 && (
           <div className="animate-fade-in-up">
             <h1 className="text-3xl font-black mb-2">O teu Objetivo</h1>
-            <p className="text-gray-500 mb-8">Onde queres chegar?</p>
+            <p className="text-gray-500 mb-6">Define a tua meta.</p>
             
             <div className="grid grid-cols-3 gap-3 mb-8">
                {[
@@ -179,34 +190,54 @@ export default function OnboardingPage() {
             </div>
 
             {formData.goal !== 'maintain' && (
-              <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                <label className="block text-xs font-bold uppercase text-gray-400 mb-3">Velocidade</label>
-                <div className="flex bg-white rounded-xl p-1 shadow-sm">
-                  <button onClick={() => handleChange('speed', 'normal')} className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${formData.speed === 'normal' ? 'bg-black text-white shadow-md' : 'text-gray-400'}`}>Normal</button>
-                  <button onClick={() => handleChange('speed', 'fast')} className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${formData.speed === 'fast' ? 'bg-black text-white shadow-md' : 'text-gray-400'}`}>Rápido</button>
+              <div className="space-y-6 animate-slide-up">
+                
+                <div>
+                   <label className="block text-xs font-bold uppercase text-gray-400 mb-2">Peso Desejado (kg)</label>
+                   <input 
+                     type="number" 
+                     value={formData.targetWeight}
+                     onChange={(e) => handleChange('targetWeight', e.target.value)}
+                     className="w-full text-4xl font-black border-b-2 border-gray-100 py-2 outline-none focus:border-black transition-colors"
+                     placeholder={formData.goal === 'lose' ? "65" : "80"}
+                   />
                 </div>
+
+                <div>
+                   <label className="block text-xs font-bold uppercase text-gray-400 mb-2">Para quando?</label>
+                   <input 
+                     type="date" 
+                     value={formData.targetDate}
+                     onChange={(e) => handleChange('targetDate', e.target.value)}
+                     className="w-full text-lg font-bold bg-gray-50 p-4 rounded-xl outline-none focus:ring-2 focus:ring-black"
+                   />
+                </div>
+
+                {weeksUntilGoal && weeksUntilGoal > 0 && (
+                   <div className="bg-blue-50 text-blue-800 p-4 rounded-xl flex items-center gap-3">
+                      <span className="text-2xl">🗓️</span>
+                      <div>
+                        <p className="text-xs font-bold uppercase opacity-60">Duração do Plano</p>
+                        <p className="font-bold text-lg">{weeksUntilGoal} semanas</p>
+                      </div>
+                   </div>
+                )}
               </div>
             )}
           </div>
         )}
       </div>
 
-      {/* Botões de Navegação */}
       <div className="mt-8 flex gap-4">
         {step > 1 && (
-          <button 
-            onClick={handleBack}
-            className="px-6 py-4 rounded-2xl font-bold text-gray-500 bg-gray-100"
-          >
-            Voltar
-          </button>
+          <button onClick={handleBack} className="px-6 py-4 rounded-2xl font-bold text-gray-500 bg-gray-100">Voltar</button>
         )}
         <button 
           onClick={step === 4 ? finishOnboarding : handleNext}
-          disabled={loading || (step === 1 && !formData.age) || (step === 2 && (!formData.height || !formData.weight))}
+          disabled={loading || (step === 1 && !formData.age) || (step === 2 && (!formData.height || !formData.weight)) || (step === 4 && formData.goal !== 'maintain' && (!formData.targetWeight || !formData.targetDate))}
           className="flex-1 bg-black text-white py-4 rounded-2xl font-bold text-lg shadow-xl active:scale-95 transition-transform disabled:opacity-50"
         >
-          {loading ? 'A calcular...' : (step === 4 ? 'Finalizar' : 'Seguinte')}
+          {loading ? 'A calcular...' : (step === 4 ? 'Criar Plano' : 'Seguinte')}
         </button>
       </div>
     </div>

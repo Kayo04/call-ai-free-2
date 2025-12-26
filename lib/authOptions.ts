@@ -42,28 +42,39 @@ export const authOptions: NextAuthOptions = {
         // @ts-ignore
         session.user.onboardingCompleted = token.onboardingCompleted;
         // @ts-ignore
-        session.user.goals = token.goals; // 👇 GUARDAR METAS NA SESSÃO
+        session.user.goals = token.goals; // Passa as metas para o Frontend
       }
       return session;
     },
     
     async jwt({ token, user, trigger, session }) {
-      // 1. No Login inicial
+      // 1. Login Inicial
       if (user) {
         // @ts-ignore
         token.onboardingCompleted = user.onboardingCompleted;
         // @ts-ignore
-        token.goals = user.goals; // 👇 GUARDAR METAS NO TOKEN
+        token.goals = user.goals;
       }
 
-      // 2. Quando chamamos update() no frontend
+      // 2. RECUPERAÇÃO FORÇADA: Se o user já estiver logado (refresh da página),
+      // vai à base de dados buscar os dados mais recentes.
+      // O segredo está no .lean() aqui em baixo! 👇
+      if (!user && token.email) {
+        await connectDB();
+        const dbUser = await User.findOne({ email: token.email }).lean(); // .lean() limpa os dados
+        
+        if (dbUser) {
+           // @ts-ignore
+           token.onboardingCompleted = dbUser.onboardingCompleted;
+           // @ts-ignore
+           token.goals = dbUser.goals;
+        }
+      }
+
+      // 3. Atualização Manual (Logo após o onboarding)
       if (trigger === "update" && session) {
-        if (session.onboardingCompleted !== undefined) {
-            token.onboardingCompleted = session.onboardingCompleted;
-        }
-        if (session.goals) {
-            token.goals = session.goals; // 👇 ATUALIZAR METAS SE VIEREM DO FRONTEND
-        }
+        if (session.onboardingCompleted !== undefined) token.onboardingCompleted = session.onboardingCompleted;
+        if (session.goals) token.goals = session.goals;
       }
 
       return token;
