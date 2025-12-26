@@ -9,11 +9,15 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@auth/mongodb-adapter": "^3.11.1",
     "@capacitor/camera": "^8.0.0",
     "@capacitor/cli": "^8.0.0",
     "@capacitor/core": "^8.0.0",
     "@google/generative-ai": "^0.24.1",
     "@ionic/pwa-elements": "^3.3.0",
+    "@types/bcryptjs": "^2.4.6",
+    "bcryptjs": "^3.0.3",
+    "mongodb": "^7.0.0",
     "mongoose": "^9.0.2",
     "next": "16.1.1",
     "next-auth": "^4.24.13",

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { Providers } from "./providers"; // 👈 IMPORTANTE: Importar o ficheiro novo
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -12,30 +13,27 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-// ✅ Metadata da PWA (AGORA COM SUPORTE IPHONE)
 export const metadata: Metadata = {
   title: "NutriScan",
   description: "Análise nutricional inteligente",
   manifest: "/manifest.json",
-  // 👇 CONFIGURAÇÕES NOVAS PARA IPHONE
   appleWebApp: {
-    capable: true, // Faz o site abrir como app (sem barras do Safari)
-    statusBarStyle: "black-translucent", // Barra de topo transparente/preta
+    capable: true,
+    statusBarStyle: "black-translucent",
     title: "NutriScan",
   },
   icons: {
     icon: "/favicon.ico",
-    apple: "/Musab.jpg", // 👈 O iPhone vai usar a tua foto como ícone!
+    apple: "/Musab.jpg",
   },
 };
 
-// ✅ Viewport (modo app nativa)
 export const viewport: Viewport = {
   themeColor: "#2563eb",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
-  userScalable: false, // Impede o zoom com os dedos (parece mais app nativa)
+  userScalable: false,
 };
 
 export default function RootLayout({
@@ -45,12 +43,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        {children}
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        
+        {/* 👇 AQUI ESTÁ A MUDANÇA: Envolvemos tudo com <Providers> */}
+        <Providers>
+          {children}
+        </Providers>
 
-        {/* ✅ Registo do Service Worker (Versão Final Limpa) */}
+        {/* Script do Service Worker (Mantém igual) */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -58,10 +58,10 @@ export default function RootLayout({
                 window.addEventListener('load', function() {
                   navigator.serviceWorker.register('/service-worker.js').then(
                     function(registration) {
-                      console.log('Service Worker registado:', registration.scope);
+                      console.log('SW registado:', registration.scope);
                     },
                     function(err) {
-                      console.log('Falha SW:', err);
+                      console.log('SW falhou:', err);
                     }
                   );
                 });

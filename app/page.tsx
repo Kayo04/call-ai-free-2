@@ -2,13 +2,33 @@
 
 import { useState, useEffect } from 'react';
 import { Camera, CameraResultType } from '@capacitor/camera';
-import { analisarImagemAction } from '@/app/action'; // Confirma se o nome do ficheiro é action ou actions
+import { signOut, useSession } from "next-auth/react";
+import { useRouter } from 'next/navigation';
+import { analisarImagemAction } from '@/app/action';
 
 export default function Home() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+
+  // Estados da App
   const [imagem, setImagem] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [dados, setDados] = useState<any>(null);
+  
+  // Estado do Menu Settings
+  const [showSettings, setShowSettings] = useState(false);
 
+  // 1. VERIFICAR SE O USER JÁ FEZ O ONBOARDING
+  useEffect(() => {
+    if (status === 'authenticated' && session?.user) {
+      // @ts-ignore (O TypeScript às vezes reclama do onboardingCompleted, mas ele existe)
+      if (session.user.onboardingCompleted === false) {
+        router.push('/onboarding');
+      }
+    }
+  }, [session, status, router]);
+
+  // Inicializar PWA Elements (para a câmara funcionar na web se precisares)
   useEffect(() => {
     import('@ionic/pwa-elements/loader').then(loader => {
       loader.defineCustomElements(window);
@@ -18,16 +38,13 @@ export default function Home() {
   const tirarFoto = async () => {
     try {
       const photo = await Camera.getPhoto({
-        // 👇 MUDANÇAS AQUI:
-        quality: 50,       // Baixamos para 50% (metade do peso)
-        width: 600,        // Baixamos para 600px (muito mais leve e rápido)
-        // height: 600,    // (Deixa comentado, o width trata de tudo)
+        quality: 50,
+        width: 600,
         allowEditing: false,
         resultType: CameraResultType.Base64
       });
 
       if (photo.base64String) {
-        // O ficheiro agora será muito mais leve (tipo 200kb em vez de 5MB)
         const base64 = `data:image/jpeg;base64,${photo.base64String}`;
         setImagem(base64);
         processar(base64); 
@@ -40,111 +57,177 @@ export default function Home() {
   const processar = async (base64: string) => {
     setLoading(true);
     setDados(null); 
-    
-    // Pequeno delay para a animação
-    await new Promise(r => setTimeout(r, 500));
+    await new Promise(r => setTimeout(r, 500)); // Pequena pausa dramática
 
     try {
       const resultado = await analisarImagemAction(base64);
-
       if (resultado.error) {
         alert("Erro: " + resultado.error);
       } else {
         setDados(resultado.data);
       }
     } catch (error) {
-      alert("A foto é muito grande ou a net falhou.");
+      alert("Erro na análise.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#F2F2F7] text-gray-900 font-sans pb-32">
+    <div className="min-h-screen bg-[#F2F2F7] text-gray-900 font-sans pb-32 relative overflow-hidden">
       
-      {/* HEADER */}
-      <header className="fixed top-0 w-full bg-white/90 backdrop-blur-md z-10 px-6 py-4 border-b border-gray-200 flex justify-between items-center transition-all">
-        <div className="flex items-center gap-2">
-          <span className="text-2xl">🍎</span>
-          <h1 className="text-xl font-bold tracking-tight text-black">NutriScan</h1>
+      {/* --- MENU SETTINGS (GAVETA LATERAL) --- */}
+      {showSettings && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          {/* Fundo escuro (clica para fechar) */}
+          <div 
+            className="absolute inset-0 bg-black/30 backdrop-blur-sm transition-opacity" 
+            onClick={() => setShowSettings(false)}
+          ></div>
+          
+          {/* O Menu deslizante */}
+          <div className="relative w-[85%] max-w-sm h-full bg-white shadow-2xl p-6 flex flex-col animate-slide-left">
+            
+            {/* Topo do Menu */}
+            <div className="flex items-center justify-between mb-10">
+              <h2 className="text-2xl font-black tracking-tight">Definições</h2>
+              <button 
+                onClick={() => setShowSettings(false)} 
+                className="w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center text-gray-500 font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Cartão de Perfil */}
+            <div className="flex flex-col items-center mb-8 p-6 bg-gray-50 rounded-[2rem] border border-gray-100">
+              <div className="relative w-24 h-24 mb-4">
+                <img 
+                  src={session?.user?.image || "https://ui-avatars.com/api/?name=User&background=random"} 
+                  className="w-full h-full rounded-full border-4 border-white shadow-sm object-cover"
+                />
+              </div>
+              <h3 className="text-xl font-black text-gray-900">{session?.user?.name || "Utilizador"}</h3>
+              <p className="text-sm text-gray-500 font-medium">{session?.user?.email}</p>
+            </div>
+
+            {/* Opções */}
+            <div className="space-y-3">
+               <button 
+                 onClick={() => router.push('/onboarding')} 
+                 className="w-full flex items-center gap-4 p-4 rounded-2xl bg-white border-2 border-gray-100 font-bold text-gray-700 hover:border-black hover:text-black transition-all"
+               >
+                 <span className="text-xl">✏️</span>
+                 Editar as minhas Metas
+               </button>
+               
+               {/* Podes adicionar mais botões aqui (Histórico, Dieta, etc) */}
+            </div>
+
+            {/* Botão de Logout (No fundo) */}
+            <div className="mt-auto">
+              <button 
+                onClick={() => signOut()} 
+                className="w-full p-5 rounded-2xl bg-red-50 text-red-600 font-bold flex items-center justify-center gap-2 hover:bg-red-100 transition-colors"
+              >
+                <LogOutIcon className="w-5 h-5"/> Terminar Sessão
+              </button>
+              <p className="text-center text-xs text-gray-300 mt-4 font-bold tracking-widest uppercase">NutriScan v1.0</p>
+            </div>
+          </div>
         </div>
-        <div className="w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center border border-gray-200">
-          <span className="text-sm">👤</span>
+      )}
+
+      {/* --- HEADER PRINCIPAL --- */}
+      <header className="fixed top-0 w-full bg-white/85 backdrop-blur-xl z-20 px-6 py-4 border-b border-gray-200/50 flex justify-between items-center">
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 bg-black rounded-xl flex items-center justify-center text-lg shadow-sm">
+            🍎
+          </div>
+          <h1 className="text-lg font-black tracking-tight text-gray-900">NutriScan</h1>
         </div>
+
+        {/* Botão da Foto de Perfil (Abre Settings) */}
+        <button 
+          onClick={() => setShowSettings(true)} 
+          className="w-10 h-10 rounded-full bg-gray-100 overflow-hidden border-2 border-white shadow-sm active:scale-95 transition-transform"
+        >
+           {session?.user?.image ? (
+            <img src={session.user.image} alt="Perfil" className="w-full h-full object-cover"/>
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-gray-400">👤</div>
+          )}
+        </button>
       </header>
 
-      {/* ÁREA PRINCIPAL */}
-      <main className="pt-24 px-5 flex flex-col items-center w-full max-w-md mx-auto">
+      {/* --- ÁREA PRINCIPAL --- */}
+      <main className="pt-28 px-6 flex flex-col items-center w-full max-w-md mx-auto">
         
-        {/* FOTO */}
-        <div className="relative w-full aspect-square bg-white rounded-[2rem] shadow-sm overflow-hidden border border-gray-100 mb-6">
+        {/* Cartão da Foto */}
+        <div className="relative w-full aspect-square bg-white rounded-[2.5rem] shadow-sm overflow-hidden border border-white mb-6">
           {imagem ? (
             <img src={imagem} className="w-full h-full object-cover" alt="Comida" />
           ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center text-gray-300 bg-gray-50">
-              <CameraIcon className="w-16 h-16 mb-3 opacity-30" />
-              <p className="font-medium text-gray-400">Tira foto ao prato</p>
+            <div className="w-full h-full flex flex-col items-center justify-center bg-gray-50 text-gray-300">
+              <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mb-4 shadow-sm">
+                <CameraIcon className="w-8 h-8 opacity-30" />
+              </div>
+              <p className="font-bold text-gray-400 text-sm">Tira uma foto à tua refeição</p>
             </div>
           )}
 
           {loading && (
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-md flex flex-col items-center justify-center text-white z-20 transition-all">
-              <div className="w-12 h-12 border-[5px] border-white/20 border-t-white rounded-full animate-spin mb-4"></div>
-              <p className="font-semibold tracking-wide animate-pulse">A analisar ingredientes...</p>
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-md flex flex-col items-center justify-center text-white z-20 animate-fade-in">
+              <div className="w-12 h-12 border-[5px] border-white/20 border-t-white rounded-full animate-spin mb-5"></div>
+              <p className="font-bold text-sm tracking-widest uppercase animate-pulse">A analisar...</p>
             </div>
           )}
         </div>
 
-        {/* RESULTADOS */}
-        {dados ? (
-          <div className="w-full animate-slide-up space-y-4">
-            <div className="bg-white p-6 rounded-[1.5rem] shadow-sm border border-gray-100 flex flex-col items-start">
-              
-              <div className="flex justify-between w-full items-start mb-2">
+        {/* Resultados da IA */}
+        {dados && (
+          <div className="w-full animate-slide-up space-y-4 pb-20">
+            
+            {/* Título e Descrição */}
+            <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
+              <div className="flex justify-between items-start mb-3">
                 <div>
-                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">IDENTIFICADO</p>
-                   <h2 className="text-2xl font-black text-gray-900 leading-tight tracking-tight">{dados.nome}</h2>
+                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">DETETADO</p>
+                   <h2 className="text-2xl font-black text-gray-900 leading-none">{dados.nome}</h2>
                 </div>
-                <span className="bg-green-100 text-green-700 text-xs font-bold px-3 py-1.5 rounded-full mt-1">
+                <span className="bg-black text-white text-[10px] font-bold px-3 py-1.5 rounded-full">
                   {dados.peso_estimado || "1 porção"}
                 </span>
               </div>
-
-              {/* AQUI ESTÁ A NOVA DESCRIÇÃO DETALHADA */}
-              <div className="bg-gray-50 w-full p-3 rounded-xl border border-gray-100 mb-2">
-                 <p className="text-sm text-gray-600 leading-relaxed font-medium">
-                    📝 {dados.descricao}
-                 </p>
+              
+              <div className="pt-3 border-t border-gray-50 mt-2">
+                <p className="text-sm text-gray-600 leading-relaxed font-medium">
+                   {dados.descricao}
+                </p>
               </div>
-
             </div>
 
+            {/* Grelha de Macros */}
             <div className="grid grid-cols-2 gap-3">
-              <MacroCard color="bg-orange-50 border-orange-100 text-orange-600" icon={<FireIcon />} label="Calorias" value={dados.calorias} />
-              <MacroCard color="bg-blue-50 border-blue-100 text-blue-600" icon={<MuscleIcon />} label="Proteína" value={dados.proteina} />
-              <MacroCard color="bg-green-50 border-green-100 text-green-600" icon={<WheatIcon />} label="Hidratos" value={dados.hidratos} />
-              <MacroCard color="bg-yellow-50 border-yellow-100 text-yellow-600" icon={<DropIcon />} label="Gordura" value={dados.gordura} />
+              <MacroCard color="bg-orange-50 text-orange-600" icon={<FireIcon />} label="Calorias" value={dados.calorias} unit="kcal" />
+              <MacroCard color="bg-blue-50 text-blue-600" icon={<MuscleIcon />} label="Proteína" value={dados.proteina} unit="g" />
+              <MacroCard color="bg-green-50 text-green-600" icon={<WheatIcon />} label="Hidratos" value={dados.hidratos} unit="g" />
+              <MacroCard color="bg-yellow-50 text-yellow-600" icon={<DropIcon />} label="Gordura" value={dados.gordura} unit="g" />
             </div>
           </div>
-        ) : (
-          !loading && imagem && (
-            <div className="text-center p-6 text-gray-400 animate-fade-in">
-              <p>👆 Análise concluída.</p>
-            </div>
-          )
         )}
       </main>
 
-      {/* BOTÃO */}
-      <div className="fixed bottom-8 left-0 w-full flex justify-center z-30 px-6">
+      {/* --- BOTÃO FLUTUANTE DE AÇÃO --- */}
+      <div className="fixed bottom-8 left-0 w-full flex justify-center z-30 px-6 pointer-events-none">
         <button
           onClick={tirarFoto}
           disabled={loading}
-          className="w-full max-w-sm bg-black text-white rounded-[1.2rem] py-4 shadow-2xl flex items-center justify-center gap-3 transition-transform active:scale-95 disabled:opacity-80 disabled:scale-100"
+          className="pointer-events-auto w-full max-w-sm bg-black text-white h-16 rounded-[2rem] shadow-2xl shadow-black/20 flex items-center justify-center gap-3 transition-all active:scale-95 hover:bg-gray-900 disabled:opacity-80 disabled:scale-100"
         >
           <CameraIcon className="w-6 h-6" />
           <span className="font-bold text-lg tracking-tight">
-            {imagem ? 'Nova Foto' : 'Escanear Comida'}
+            {imagem ? 'Nova Foto' : 'Escanear'}
           </span>
         </button>
       </div>
@@ -153,18 +236,26 @@ export default function Home() {
   );
 }
 
-/* --- ÍCONES E COMPONENTES --- */
-function MacroCard({ color, icon, label, value }: any) {
+/* --- COMPONENTES VISUAIS AUXILIARES --- */
+
+function MacroCard({ color, icon, label, value, unit }: any) {
   return (
-    <div className={`${color} border p-5 rounded-[1.2rem] flex flex-col items-start shadow-sm transition-transform active:scale-95`}>
-      <div className="mb-3 p-2.5 bg-white rounded-xl shadow-sm">{icon}</div>
-      <p className="text-[10px] font-bold opacity-60 uppercase tracking-wider mb-0.5">{label}</p>
-      <p className="text-2xl font-black tracking-tighter">{value}</p>
+    <div className={`${color} p-5 rounded-[1.8rem] flex flex-col items-start transition-transform active:scale-95`}>
+      <div className="mb-auto opacity-80 bg-white/50 p-2 rounded-xl">{icon}</div>
+      <div className="mt-3">
+        <p className="text-[10px] font-bold opacity-60 uppercase tracking-wider">{label}</p>
+        <div className="flex items-baseline gap-0.5">
+          <p className="text-2xl font-black tracking-tight">{value}</p>
+          <span className="text-xs font-bold opacity-60">{unit}</span>
+        </div>
+      </div>
     </div>
   );
 }
 
+// Ícones SVG Limpos
 const CameraIcon = ({ className }: { className?: string }) => (<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>);
+const LogOutIcon = ({ className }: { className?: string }) => (<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>);
 const FireIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-2.072-5.714-1-8.571C12.5 1.5 17 6.5 17 12a5 5 0 1 1-10 0c0-1 3-3 3-3"/><path d="M12 14v4"/><path d="M12 2v1"/></svg>);
 const MuscleIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 12c-3 0-4-3-4-3s2-2 3-2 3 2 3 2-1 3-4 3Z"/><path d="M6 5c2-2 4 2 6 7 2-5 4-9 6-7s-5 8-6 12"/></svg>);
 const WheatIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 22 17 7"/><path d="M12 6a2 2 0 0 1 2 2"/><path d="M16.14 8.79a3 3 0 0 1 4.54 1.3"/><path d="M16 11a3 3 0 0 1 3 3"/></svg>);
