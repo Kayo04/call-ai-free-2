@@ -42,39 +42,50 @@ export const authOptions: NextAuthOptions = {
         // @ts-ignore
         session.user.onboardingCompleted = token.onboardingCompleted;
         // @ts-ignore
-        session.user.goals = token.goals; // Passa as metas para o Frontend
+        session.user.goals = token.goals;
+        // @ts-ignore
+        session.user.dailyLog = token.dailyLog; // 👇 Passar o log diário
       }
       return session;
     },
     
     async jwt({ token, user, trigger, session }) {
-      // 1. Login Inicial
       if (user) {
         // @ts-ignore
         token.onboardingCompleted = user.onboardingCompleted;
         // @ts-ignore
         token.goals = user.goals;
+        // @ts-ignore
+        token.dailyLog = user.dailyLog;
       }
 
-      // 2. RECUPERAÇÃO FORÇADA: Se o user já estiver logado (refresh da página),
-      // vai à base de dados buscar os dados mais recentes.
-      // O segredo está no .lean() aqui em baixo! 👇
       if (!user && token.email) {
         await connectDB();
-        const dbUser = await User.findOne({ email: token.email }).lean(); // .lean() limpa os dados
+        const dbUser = await User.findOne({ email: token.email }).lean();
         
         if (dbUser) {
            // @ts-ignore
            token.onboardingCompleted = dbUser.onboardingCompleted;
            // @ts-ignore
            token.goals = dbUser.goals;
+           
+           // 👇 Lógica inteligente: Se mudou o dia, reseta o contador no visual
+           // @ts-ignore
+           const logDate = new Date(dbUser.dailyLog?.date || 0);
+           const today = new Date();
+           const isSameDay = logDate.getDate() === today.getDate() && 
+                             logDate.getMonth() === today.getMonth() && 
+                             logDate.getFullYear() === today.getFullYear();
+           
+           // @ts-ignore
+           token.dailyLog = isSameDay ? dbUser.dailyLog : { calories: 0, protein: 0, carbs: 0, fat: 0 };
         }
       }
 
-      // 3. Atualização Manual (Logo após o onboarding)
       if (trigger === "update" && session) {
         if (session.onboardingCompleted !== undefined) token.onboardingCompleted = session.onboardingCompleted;
         if (session.goals) token.goals = session.goals;
+        if (session.dailyLog) token.dailyLog = session.dailyLog; // Atualiza log
       }
 
       return token;
@@ -82,4 +93,4 @@ export const authOptions: NextAuthOptions = {
   },
   pages: { signIn: '/login' },
   secret: process.env.NEXTAUTH_SECRET,
-};
+};  

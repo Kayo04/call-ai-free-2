@@ -7,15 +7,15 @@ import { useRouter } from 'next/navigation';
 import { analisarImagemAction } from '@/app/action';
 
 export default function Home() {
-  const { data: session, status } = useSession();
+  const { data: session, status, update } = useSession(); // Importante: update
   const router = useRouter();
 
   const [imagem, setImagem] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [dados, setDados] = useState<any>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [addingMeal, setAddingMeal] = useState(false); // Estado para o botão de adicionar
 
-  // Redirecionar se não fez onboarding
   useEffect(() => {
     if (status === 'authenticated' && session?.user) {
       // @ts-ignore
@@ -25,7 +25,6 @@ export default function Home() {
     }
   }, [session, status, router]);
 
-  // Carregar ícones da câmara
   useEffect(() => {
     import('@ionic/pwa-elements/loader').then(loader => {
       loader.defineCustomElements(window);
@@ -55,10 +54,60 @@ export default function Home() {
     } catch (error) { alert("Erro na análise."); } finally { setLoading(false); }
   };
 
+  // FUNÇÃO PARA ADICIONAR AO DIÁRIO
+  const adicionarAoDiario = async () => {
+    if (!dados) return;
+    setAddingMeal(true);
+
+    try {
+      const res = await fetch('/api/user/add-meal', {
+        method: 'POST',
+        body: JSON.stringify({
+          calories: dados.calorias,
+          protein: dados.proteina,
+          carbs: dados.hidratos,
+          fat: dados.gordura
+        })
+      });
+
+      const json = await res.json();
+
+      if (res.ok) {
+        // Atualiza a sessão local com os novos valores somados
+        await update({ dailyLog: json.dailyLog });
+        
+        // Limpa a foto e os dados para voltar ao inicio
+        setImagem(null);
+        setDados(null);
+        alert("Refeição registada! 🔥");
+      }
+    } catch (error) {
+      alert("Erro ao adicionar refeição.");
+    } finally {
+      setAddingMeal(false);
+    }
+  };
+
+  // CÁLCULOS DO QUE FALTA COMER (RESTANTE)
+  // @ts-ignore
+  const goals = session?.user?.goals || { calories: 0, protein: 0, carbs: 0, fat: 0 };
+  // @ts-ignore
+  const eaten = session?.user?.dailyLog || { calories: 0, protein: 0, carbs: 0, fat: 0 };
+
+  const remaining = {
+    calories: Math.max(0, goals.calories - eaten.calories),
+    protein: Math.max(0, goals.protein - eaten.protein),
+    carbs: Math.max(0, goals.carbs - eaten.carbs),
+    fat: Math.max(0, goals.fat - eaten.fat),
+  };
+
+  // Percentagem para a barra de progresso (opcional, mas visual)
+  const progress = goals.calories > 0 ? Math.min(100, (eaten.calories / goals.calories) * 100) : 0;
+
   return (
     <div className="min-h-screen bg-[#F2F2F7] text-gray-900 font-sans pb-32 relative overflow-hidden">
       
-      {/* MENU SETTINGS */}
+      {/* MENU SETTINGS (Igual ao anterior) */}
       {showSettings && (
         <div className="fixed inset-0 z-50 flex justify-end">
           <div className="absolute inset-0 bg-black/30 backdrop-blur-sm transition-opacity" onClick={() => setShowSettings(false)}></div>
@@ -76,7 +125,7 @@ export default function Home() {
             </div>
             <div className="space-y-3">
                <button onClick={() => router.push('/onboarding')} className="w-full flex items-center gap-4 p-4 rounded-2xl bg-white border-2 border-gray-100 font-bold text-gray-700 hover:border-black hover:text-black transition-all">
-                 <span className="text-xl">✏️</span> Editar as minhas Metas
+                 <span className="text-xl">✏️</span> Recalcular Metas
                </button>
             </div>
             <div className="mt-auto">
@@ -104,40 +153,51 @@ export default function Home() {
 
       <main className="pt-28 px-6 flex flex-col items-center w-full max-w-md mx-auto">
         
-        {/* METAS DIÁRIAS (Preto) - SÓ APARECE SE HOUVER GOALS */}
+        {/* --- CARTÃO DE PROGRESSO (RESTANTE) --- */}
         {/* @ts-ignore */}
         {session?.user?.goals && session.user.goals.calories > 0 && (
-          <div className="w-full bg-black text-white p-6 rounded-[2rem] shadow-xl shadow-black/10 mb-8 animate-fade-in-up">
-            <div className="flex justify-between items-start mb-6">
-              <div>
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">META DIÁRIA</p>
-                {/* @ts-ignore */}
-                <h2 className="text-5xl font-black tracking-tighter">{session.user.goals.calories} <span className="text-xl text-gray-500 font-bold">kcal</span></h2>
-              </div>
-              <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center text-2xl animate-pulse">🔥</div>
-            </div>
+          <div className="w-full bg-black text-white p-6 rounded-[2rem] shadow-xl shadow-black/10 mb-8 animate-fade-in-up relative overflow-hidden">
+            
+            {/* Barra de Fundo (Progresso) */}
+            <div 
+                className="absolute top-0 left-0 h-full bg-white/10 transition-all duration-1000 ease-out" 
+                style={{ width: `${progress}%` }} 
+            />
 
-            <div className="grid grid-cols-3 gap-3">
-              <div className="bg-white/10 p-3 rounded-2xl border border-white/5">
-                <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Proteína</p>
-                {/* @ts-ignore */}
-                <p className="text-lg font-bold">{session.user.goals.protein}g</p>
-              </div>
-              <div className="bg-white/10 p-3 rounded-2xl border border-white/5">
-                <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Carbs</p>
-                {/* @ts-ignore */}
-                <p className="text-lg font-bold">{session.user.goals.carbs}g</p>
-              </div>
-              <div className="bg-white/10 p-3 rounded-2xl border border-white/5">
-                <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Gordura</p>
-                {/* @ts-ignore */}
-                <p className="text-lg font-bold">{session.user.goals.fat}g</p>
-              </div>
+            <div className="relative z-10">
+                <div className="flex justify-between items-start mb-6">
+                <div>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
+                        {remaining.calories === 0 ? "META ATINGIDA! 🎉" : "RESTAM HOJE"}
+                    </p>
+                    <h2 className="text-5xl font-black tracking-tighter">
+                        {remaining.calories} <span className="text-xl text-gray-500 font-bold">kcal</span>
+                    </h2>
+                </div>
+                <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center text-2xl">
+                    {remaining.calories === 0 ? "✅" : "🔥"}
+                </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                <div className="bg-white/10 p-3 rounded-2xl border border-white/5">
+                    <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Prot</p>
+                    <p className="text-lg font-bold">{remaining.protein}g</p>
+                </div>
+                <div className="bg-white/10 p-3 rounded-2xl border border-white/5">
+                    <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Carb</p>
+                    <p className="text-lg font-bold">{remaining.carbs}g</p>
+                </div>
+                <div className="bg-white/10 p-3 rounded-2xl border border-white/5">
+                    <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Gord</p>
+                    <p className="text-lg font-bold">{remaining.fat}g</p>
+                </div>
+                </div>
             </div>
           </div>
         )}
 
-        {/* CÂMARA */}
+        {/* FOTO */}
         <div className="relative w-full aspect-square bg-white rounded-[2.5rem] shadow-sm overflow-hidden border border-white mb-6">
           {imagem ? (
             <img src={imagem} className="w-full h-full object-cover" alt="Comida" />
@@ -157,9 +217,9 @@ export default function Home() {
           )}
         </div>
 
-        {/* RESULTADOS */}
+        {/* RESULTADOS + BOTÃO DE ADICIONAR */}
         {dados && (
-          <div className="w-full animate-slide-up space-y-4 pb-20">
+          <div className="w-full animate-slide-up space-y-4 pb-28">
             <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
               <div className="flex justify-between items-start mb-3">
                 <div>
@@ -174,22 +234,42 @@ export default function Home() {
                 <p className="text-sm text-gray-600 leading-relaxed font-medium">{dados.descricao}</p>
               </div>
             </div>
+            
             <div className="grid grid-cols-2 gap-3">
               <MacroCard color="bg-orange-50 text-orange-600" icon={<FireIcon />} label="Calorias" value={dados.calorias} unit="kcal" />
               <MacroCard color="bg-blue-50 text-blue-600" icon={<MuscleIcon />} label="Proteína" value={dados.proteina} unit="g" />
               <MacroCard color="bg-green-50 text-green-600" icon={<WheatIcon />} label="Hidratos" value={dados.hidratos} unit="g" />
               <MacroCard color="bg-yellow-50 text-yellow-600" icon={<DropIcon />} label="Gordura" value={dados.gordura} unit="g" />
             </div>
+
+            {/* 👇 BOTÃO DE ADICIONAR AO DIÁRIO */}
+            <button 
+              onClick={adicionarAoDiario}
+              disabled={addingMeal}
+              className="w-full bg-green-500 text-white font-bold py-4 rounded-[1.5rem] shadow-lg hover:bg-green-600 active:scale-95 transition-all flex items-center justify-center gap-2 mt-4"
+            >
+              {addingMeal ? (
+                <span>A guardar...</span>
+              ) : (
+                <>
+                  <span className="text-xl">+</span> Adicionar ao Diário
+                </>
+              )}
+            </button>
+
           </div>
         )}
       </main>
 
-      <div className="fixed bottom-8 left-0 w-full flex justify-center z-30 px-6 pointer-events-none">
-        <button onClick={tirarFoto} disabled={loading} className="pointer-events-auto w-full max-w-sm bg-black text-white h-16 rounded-[2rem] shadow-2xl shadow-black/20 flex items-center justify-center gap-3 transition-all active:scale-95 hover:bg-gray-900 disabled:opacity-80 disabled:scale-100">
-          <CameraIcon className="w-6 h-6" />
-          <span className="font-bold text-lg tracking-tight">{imagem ? 'Nova Foto' : 'Escanear'}</span>
-        </button>
-      </div>
+      {/* BOTÃO FLUTUANTE DA CÂMARA (Só aparece se não tivermos dados já analisados) */}
+      {!dados && (
+        <div className="fixed bottom-8 left-0 w-full flex justify-center z-30 px-6 pointer-events-none">
+            <button onClick={tirarFoto} disabled={loading} className="pointer-events-auto w-full max-w-sm bg-black text-white h-16 rounded-[2rem] shadow-2xl shadow-black/20 flex items-center justify-center gap-3 transition-all active:scale-95 hover:bg-gray-900 disabled:opacity-80 disabled:scale-100">
+            <CameraIcon className="w-6 h-6" />
+            <span className="font-bold text-lg tracking-tight">{imagem ? 'Nova Foto' : 'Escanear'}</span>
+            </button>
+        </div>
+      )}
     </div>
   );
 }

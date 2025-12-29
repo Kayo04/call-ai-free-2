@@ -16,16 +16,25 @@ const UserSchema = new mongoose.Schema(
       gender: { type: String, enum: ['male', 'female'] },
       activity: { type: String, enum: ['sedentary', 'light', 'moderate', 'active'] },
       goal: { type: String, enum: ['lose', 'maintain', 'gain'] },
-      targetWeight: { type: Number }, // Peso que quer atingir
-      targetDate: { type: Date },     // Data para atingir
+      targetWeight: { type: Number }, 
+      targetDate: { type: Date },
     },
 
     goals: {
-      calories: { type: Number, default: 0 }, // Começa a 0 para sabermos se já calculou
+      calories: { type: Number, default: 0 },
       protein: { type: Number, default: 0 },
       carbs: { type: Number, default: 0 },
       fat: { type: Number, default: 0 },
     },
+
+    // 👇 NOVO: Registo do que já comeste hoje
+    dailyLog: {
+      date: { type: Date, default: Date.now }, // Para sabermos de que dia é
+      calories: { type: Number, default: 0 },
+      protein: { type: Number, default: 0 },
+      carbs: { type: Number, default: 0 },
+      fat: { type: Number, default: 0 },
+    }
   },
   { timestamps: true }
 );
