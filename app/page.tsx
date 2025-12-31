@@ -29,11 +29,10 @@ export default function Home() {
   const [showSettings, setShowSettings] = useState(false);
   const [addStatus, setAddStatus] = useState<'idle' | 'loading' | 'success'>('idle');
   
-  // ESTADOS LOCAIS PARA ATUALIZAÇÃO IMEDIATA
+  // ESTADOS LOCAIS
   const [tempGoals, setTempGoals] = useState<any>({});
   const [dailyLog, setDailyLog] = useState<any>({ calories: 0, protein: 0, carbs: 0, fat: 0 });
 
-  // Sincronizar com a sessão quando a página carrega
   useEffect(() => {
     if (status === 'authenticated' && session?.user) {
       // @ts-ignore
@@ -71,7 +70,9 @@ export default function Home() {
     if (!dados) return;
     setAddStatus('loading');
     try {
+      // 👇 AQUI ESTAVA A FALHA! ADICIONEI O NOME AGORA.
       const payload: any = {
+          name: dados.nome, // <--- IMPORTANTE: Envia o nome para a BD
           calories: dados.calorias, protein: dados.proteina, carbs: dados.hidratos, fat: dados.gordura,
           fiber: dados.fibra, sugar: dados.acucar, sodium: dados.sodio, cholesterol: dados.colesterol
       };
@@ -80,9 +81,8 @@ export default function Home() {
       const json = await res.json();
       
       if (res.ok) {
-        // Atualiza a sessão e o estado local IMEDIATAMENTE
         await update({ dailyLog: json.dailyLog });
-        setDailyLog(json.dailyLog); // <-- Força a atualização visual aqui
+        setDailyLog(json.dailyLog);
         setAddStatus('success');
         
         setTimeout(() => { 
@@ -111,8 +111,6 @@ export default function Home() {
   // CÁLCULOS VISUAIS
   // @ts-ignore
   const goals = session?.user?.goals || {};
-  
-  // Usamos o dailyLog do estado local para ser instantâneo
   const currentCalories = dailyLog.calories || 0;
   const goalCalories = goals.calories || 2000;
   
@@ -124,8 +122,8 @@ export default function Home() {
   };
 
   const progressPct = goalCalories > 0 ? Math.min(100, (currentCalories / goalCalories) * 100) : 0;
-  
   const activeExtras = AVAILABLE_NUTRIENTS.filter(n => (goals[n.key] || 0) > 0);
+  const firstName = session?.user?.name?.split(' ')[0] || "Visitante";
 
   return (
     <div className="min-h-screen bg-[#F2F2F7] text-gray-900 font-sans pb-32 relative overflow-hidden">
@@ -165,13 +163,20 @@ export default function Home() {
             <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center text-lg shadow-sm">🍎</div>
             <h1 className="text-lg font-black tracking-tight">NutriScan</h1>
         </div>
-        <button onClick={() => setShowSettings(true)} className="w-10 h-10 rounded-full bg-gray-100 overflow-hidden border-2 border-white shadow-sm">
+        <button onClick={() => setShowSettings(true)} className="w-10 h-10 rounded-full bg-gray-100 overflow-hidden border-2 border-white shadow-sm active:scale-95 transition-transform">
            {session?.user?.image ? (<img src={session.user.image} className="w-full h-full object-cover"/>) : (<div className="w-full h-full flex items-center justify-center">👤</div>)}
         </button>
       </header>
 
       <main className="pt-24 px-6 flex flex-col items-center w-full max-w-md mx-auto">
         
+        {/* 👇 SAUDAÇÃO PERSONALIZADA */}
+        <div className="w-full mb-4">
+            <h1 className="text-3xl font-black text-gray-900 tracking-tight">
+                Olá, <span className="text-gray-500">{firstName}</span> 👋
+            </h1>
+        </div>
+
         {/* BOTÃO PARA O HISTÓRICO */}
         <button onClick={() => router.push('/history')} className="w-full mb-6 bg-white p-4 rounded-[1.5rem] shadow-sm flex items-center justify-between group active:scale-95 transition-transform">
             <div className="flex items-center gap-3">
@@ -184,7 +189,7 @@ export default function Home() {
             <span className="text-gray-300 group-hover:text-black transition-colors">→</span>
         </button>
 
-        {/* --- CARTÃO PRETO (Com Visualização de Progresso Clara) --- */}
+        {/* --- CARTÃO PRETO --- */}
         {goalCalories > 0 && (
           <div className="w-full bg-black text-white p-6 rounded-[2rem] shadow-xl shadow-black/10 mb-8 relative overflow-hidden">
             
@@ -210,7 +215,7 @@ export default function Home() {
                 ></div>
             </div>
             
-            {/* TEXTO DE ESTADO (Para saberes que contou) */}
+            {/* TEXTO DE ESTADO */}
             <div className="flex justify-between text-xs font-bold text-gray-400 mb-6 relative z-10">
                 <span>{currentCalories} ingeridas</span>
                 <span>Meta: {goalCalories}</span>
@@ -248,7 +253,7 @@ export default function Home() {
           )}
         </div>
 
-        {/* RESULTADOS + NOVO BOTÃO DE ADICIONAR */}
+        {/* RESULTADOS + BOTÃO DE ADICIONAR */}
         {dados && (
           <div className="w-full animate-slide-up pb-32">
             <div className="bg-white p-5 rounded-[2rem] shadow-sm border border-gray-100 mb-4">
@@ -289,25 +294,12 @@ export default function Home() {
   );
 }
 
-// COMPONENTES MINI (Para o cartão preto)
+// COMPONENTES MINI
 function MiniMacro({ label, val, unit = "g" }: any) {
-    return (
-        <div className="bg-white/10 p-3 rounded-2xl border border-white/5">
-            <p className="text-[9px] text-gray-400 font-bold uppercase mb-0.5">{label}</p>
-            <p className="text-sm font-bold">{Math.round(val)}{unit}</p>
-        </div>
-    )
+    return (<div className="bg-white/10 p-3 rounded-2xl border border-white/5"><p className="text-[9px] text-gray-400 font-bold uppercase mb-0.5">{label}</p><p className="text-sm font-bold">{Math.round(val)}{unit}</p></div>)
 }
-
 function MacroCard({ icon, label, val, unit }: any) {
-    return (
-        <div className="bg-white p-4 rounded-[1.5rem] border border-gray-100 flex flex-col items-start">
-            <div className="text-2xl mb-2">{icon}</div>
-            <p className="text-[10px] text-gray-400 font-bold uppercase">{label}</p>
-            <p className="text-xl font-black">{val}{unit}</p>
-        </div>
-    )
+    return (<div className="bg-white p-4 rounded-[1.5rem] border border-gray-100 flex flex-col items-start"><div className="text-2xl mb-2">{icon}</div><p className="text-[10px] text-gray-400 font-bold uppercase">{label}</p><p className="text-xl font-black">{val}{unit}</p></div>)
 }
-
 const CameraIcon = ({ className }: { className?: string }) => (<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>);
 const LogOutIcon = ({ className }: { className?: string }) => (<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>);

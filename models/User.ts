@@ -19,13 +19,11 @@ const UserSchema = new mongoose.Schema(
       targetDate: { type: Date },
     },
 
-    // As metas (0 = desativado)
     goals: {
       calories: { type: Number, default: 0 },
       protein: { type: Number, default: 0 },
       carbs: { type: Number, default: 0 },
       fat: { type: Number, default: 0 },
-      // Extras
       fiber: { type: Number, default: 0 },
       sugar: { type: Number, default: 0 },
       sodium: { type: Number, default: 0 },
@@ -33,15 +31,14 @@ const UserSchema = new mongoose.Schema(
       potassium: { type: Number, default: 0 },
       calcium: { type: Number, default: 0 },
       iron: { type: Number, default: 0 },
-      vitA: { type: Number, default: 0 },
       vitC: { type: Number, default: 0 },
       vitD: { type: Number, default: 0 },
-      // Podes adicionar mais aqui se quiseres
     },
 
-    // O que comeste hoje
+    // O Diário de Hoje
     dailyLog: {
       date: { type: Date, default: Date.now },
+      // Totais
       calories: { type: Number, default: 0 },
       protein: { type: Number, default: 0 },
       carbs: { type: Number, default: 0 },
@@ -49,23 +46,33 @@ const UserSchema = new mongoose.Schema(
       fiber: { type: Number, default: 0 },
       sugar: { type: Number, default: 0 },
       sodium: { type: Number, default: 0 },
-      cholesterol: { type: Number, default: 0 },
-      potassium: { type: Number, default: 0 },
-      calcium: { type: Number, default: 0 },
-      iron: { type: Number, default: 0 },
-      vitA: { type: Number, default: 0 },
-      vitC: { type: Number, default: 0 },
-      vitD: { type: Number, default: 0 },
+      // 👇 LISTA DE REFEIÇÕES INDIVIDUAIS
+      meals: [{
+        name: { type: String },
+        calories: { type: Number },
+        protein: { type: Number },
+        carbs: { type: Number },
+        fat: { type: Number },
+        image: { type: String } // Opcional: se quiseres guardar a foto um dia
+      }]
     },
 
-    // Histórico completo
+    // O Arquivo Passado
     history: [{
       date: { type: Date },
       calories: { type: Number },
       protein: { type: Number },
       carbs: { type: Number },
       fat: { type: Number },
-      metGoal: { type: Boolean }
+      metGoal: { type: Boolean },
+      // 👇 TAMBÉM GUARDAMOS AQUI
+      meals: [{
+        name: { type: String },
+        calories: { type: Number },
+        protein: { type: Number },
+        carbs: { type: Number },
+        fat: { type: Number }
+      }]
     }]
   },
   { timestamps: true }

@@ -9,34 +9,26 @@ export async function POST(req: Request) {
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) return NextResponse.json({ message: "Erro auth" }, { status: 401 });
 
-    const data = await req.json();
+    const data = await req.json(); 
 
     await connectDB();
     const user = await User.findOne({ email: session.user.email });
 
-    if (!user) return NextResponse.json({ message: "Utilizador não encontrado" }, { status: 404 });
+    if (!user) return NextResponse.json({ message: "User not found" }, { status: 404 });
 
-    // --- CORREÇÃO DE SEGURANÇA ---
-    // Se o user for antigo e não tiver dailyLog, inicializa-o agora para não dar erro
-    if (!user.dailyLog) {
-      user.dailyLog = {
-        date: new Date(),
-        calories: 0, protein: 0, carbs: 0, fat: 0,
-        fiber: 0, sugar: 0, sodium: 0
-      };
-    }
-    // -----------------------------
+    // Inicializar array se não existir
+    if (!user.dailyLog) user.dailyLog = { date: new Date(), meals: [] };
+    if (!user.dailyLog.meals) user.dailyLog.meals = [];
 
     const lastLogDate = new Date(user.dailyLog.date || Date.now());
     const today = new Date();
     
-    // Verifica se é o mesmo dia (ignora horas)
     const isSameDay = lastLogDate.getDate() === today.getDate() && 
                       lastLogDate.getMonth() === today.getMonth() && 
                       lastLogDate.getFullYear() === today.getFullYear();
 
     if (!isSameDay) {
-      // Arquivar dia anterior no histórico se tiver dados
+      // 1. Arquivar dia anterior
       if (user.dailyLog.calories > 0) {
         const goal = user.goals?.calories || 2000;
         const metGoal = user.dailyLog.calories >= (goal * 0.9) && user.dailyLog.calories <= (goal * 1.1);
@@ -47,35 +39,63 @@ export async function POST(req: Request) {
             protein: user.dailyLog.protein,
             carbs: user.dailyLog.carbs,
             fat: user.dailyLog.fat,
+            meals: user.dailyLog.meals, 
             metGoal: metGoal
         });
         
-        // Limita histórico a 60 dias
         if (user.history.length > 60) user.history.shift();
       }
       
-      // Reseta para o novo dia com a refeição atual
-      user.dailyLog = { ...data, date: today };
+      // 2. Novo Dia
+      user.dailyLog = {
+        date: today,
+        calories: Number(data.calories),
+        protein: Number(data.protein),
+        carbs: Number(data.carbs),
+        fat: Number(data.fat),
+        fiber: Number(data.fiber || 0),
+        sugar: Number(data.sugar || 0),
+        sodium: Number(data.sodium || 0),
+        meals: [{ 
+            name: data.name || "Refeição",
+            calories: Number(data.calories),
+            protein: Number(data.protein),
+            carbs: Number(data.carbs),
+            fat: Number(data.fat)
+        }]
+      };
+
     } else {
-      // Soma à refeição de hoje
+      // 3. Mesmo Dia: Adicionar à lista
       user.dailyLog.calories = (user.dailyLog.calories || 0) + (data.calories || 0);
       user.dailyLog.protein = (user.dailyLog.protein || 0) + (data.protein || 0);
       user.dailyLog.carbs = (user.dailyLog.carbs || 0) + (data.carbs || 0);
       user.dailyLog.fat = (user.dailyLog.fat || 0) + (data.fat || 0);
-      
-      // Micros opcionais
       user.dailyLog.fiber = (user.dailyLog.fiber || 0) + (data.fiber || 0);
       user.dailyLog.sugar = (user.dailyLog.sugar || 0) + (data.sugar || 0);
       user.dailyLog.sodium = (user.dailyLog.sodium || 0) + (data.sodium || 0);
-      
       user.dailyLog.date = today;
+
+      user.dailyLog.meals.push({
+          name: data.name || "Refeição",
+          calories: Number(data.calories),
+          protein: Number(data.protein),
+          carbs: Number(data.carbs),
+          fat: Number(data.fat)
+      });
     }
 
     await user.save();
-    return NextResponse.json({ message: "Adicionado!", dailyLog: user.dailyLog });
+
+    // 👇👇👇 A CORREÇÃO ESTÁ AQUI EM BAIXO 👇👇👇
+    // O .toObject() é obrigatório para a lista passar para o frontend!
+    return NextResponse.json({ 
+        message: "Adicionado!", 
+        dailyLog: user.dailyLog.toObject() 
+    });
 
   } catch (error) {
-    console.error("Erro ao adicionar refeição:", error); // Isto ajuda a ver o erro no terminal
+    console.error(error);
     return NextResponse.json({ message: "Erro interno" }, { status: 500 });
   }
 }
