@@ -8,12 +8,12 @@
   "orientation": "portrait",
   "icons": [
     {
-      "src": "/Musab.jpg",
+      "src": "/icon-v2.jpg",
       "sizes": "192x192",
       "type": "image/jpeg"
     },
     {
-      "src": "/Musab.jpg",
+      "src": "/icon-v2.jpg",
       "sizes": "512x512",
       "type": "image/jpeg"
     }
