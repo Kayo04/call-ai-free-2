@@ -6,133 +6,154 @@ import { signOut, useSession } from "next-auth/react";
 import { useRouter } from 'next/navigation';
 import { analisarImagemAction } from '@/app/action';
 
+// Lista de Nutrientes Disponíveis
+const AVAILABLE_NUTRIENTS = [
+    { key: 'fiber', label: 'Fibra', unit: 'g' },
+    { key: 'sugar', label: 'Açúcar', unit: 'g' },
+    { key: 'sodium', label: 'Sódio', unit: 'mg' },
+    { key: 'cholesterol', label: 'Colesterol', unit: 'mg' },
+    { key: 'potassium', label: 'Potássio', unit: 'mg' },
+    { key: 'calcium', label: 'Cálcio', unit: 'mg' },
+    { key: 'iron', label: 'Ferro', unit: 'mg' },
+    { key: 'vitC', label: 'Vitamina C', unit: 'mg' },
+    { key: 'vitD', label: 'Vitamina D', unit: 'iu' },
+];
+
 export default function Home() {
-  const { data: session, status, update } = useSession(); // Importante: update
+  const { data: session, status, update } = useSession();
   const router = useRouter();
 
   const [imagem, setImagem] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [dados, setDados] = useState<any>(null);
   const [showSettings, setShowSettings] = useState(false);
-  const [addingMeal, setAddingMeal] = useState(false); // Estado para o botão de adicionar
+  const [addStatus, setAddStatus] = useState<'idle' | 'loading' | 'success'>('idle');
+  
+  // ESTADOS LOCAIS PARA ATUALIZAÇÃO IMEDIATA
+  const [tempGoals, setTempGoals] = useState<any>({});
+  const [dailyLog, setDailyLog] = useState<any>({ calories: 0, protein: 0, carbs: 0, fat: 0 });
 
+  // Sincronizar com a sessão quando a página carrega
   useEffect(() => {
     if (status === 'authenticated' && session?.user) {
       // @ts-ignore
-      if (session.user.onboardingCompleted === false) {
-        router.push('/onboarding');
-      }
+      if (session.user.onboardingCompleted === false) router.push('/onboarding');
+      // @ts-ignore
+      if (session.user.goals) setTempGoals(session.user.goals);
+      // @ts-ignore
+      if (session.user.dailyLog) setDailyLog(session.user.dailyLog);
     }
   }, [session, status, router]);
 
   useEffect(() => {
-    import('@ionic/pwa-elements/loader').then(loader => {
-      loader.defineCustomElements(window);
-    });
+    import('@ionic/pwa-elements/loader').then(loader => { loader.defineCustomElements(window); });
   }, []);
 
   const tirarFoto = async () => {
     try {
-      const photo = await Camera.getPhoto({
-        quality: 50, width: 600, allowEditing: false, resultType: CameraResultType.Base64
-      });
+      const photo = await Camera.getPhoto({ quality: 50, width: 600, resultType: CameraResultType.Base64 });
       if (photo.base64String) {
-        const base64 = `data:image/jpeg;base64,${photo.base64String}`;
-        setImagem(base64);
-        processar(base64); 
+        setImagem(`data:image/jpeg;base64,${photo.base64String}`);
+        processar(`data:image/jpeg;base64,${photo.base64String}`);
       }
-    } catch (e) { console.log("Câmara cancelada"); }
+    } catch (e) { console.log("Cancelado"); }
   };
 
   const processar = async (base64: string) => {
-    setLoading(true); setDados(null); 
-    await new Promise(r => setTimeout(r, 500)); 
+    setLoading(true); setDados(null); setAddStatus('idle');
     try {
-      const resultado = await analisarImagemAction(base64);
-      if (resultado.error) alert("Erro: " + resultado.error);
-      else setDados(resultado.data);
-    } catch (error) { alert("Erro na análise."); } finally { setLoading(false); }
+      const res = await analisarImagemAction(base64);
+      if (res.error) alert(res.error); else setDados(res.data);
+    } catch (e) { alert("Erro na análise."); } finally { setLoading(false); }
   };
 
-  // FUNÇÃO PARA ADICIONAR AO DIÁRIO
   const adicionarAoDiario = async () => {
     if (!dados) return;
-    setAddingMeal(true);
-
+    setAddStatus('loading');
     try {
-      const res = await fetch('/api/user/add-meal', {
-        method: 'POST',
-        body: JSON.stringify({
-          calories: dados.calorias,
-          protein: dados.proteina,
-          carbs: dados.hidratos,
-          fat: dados.gordura
-        })
-      });
-
+      const payload: any = {
+          calories: dados.calorias, protein: dados.proteina, carbs: dados.hidratos, fat: dados.gordura,
+          fiber: dados.fibra, sugar: dados.acucar, sodium: dados.sodio, cholesterol: dados.colesterol
+      };
+      
+      const res = await fetch('/api/user/add-meal', { method: 'POST', body: JSON.stringify(payload) });
       const json = await res.json();
-
+      
       if (res.ok) {
-        // Atualiza a sessão local com os novos valores somados
+        // Atualiza a sessão e o estado local IMEDIATAMENTE
         await update({ dailyLog: json.dailyLog });
+        setDailyLog(json.dailyLog); // <-- Força a atualização visual aqui
+        setAddStatus('success');
         
-        // Limpa a foto e os dados para voltar ao inicio
-        setImagem(null);
-        setDados(null);
-        alert("Refeição registada! 🔥");
+        setTimeout(() => { 
+            setImagem(null); 
+            setDados(null); 
+            setAddStatus('idle'); 
+        }, 1500);
+      } else {
+        throw new Error("Falha no servidor");
       }
-    } catch (error) {
-      alert("Erro ao adicionar refeição.");
-    } finally {
-      setAddingMeal(false);
+    } catch (e) { 
+        setAddStatus('idle'); 
+        alert("Erro ao guardar. Tenta novamente."); 
     }
   };
 
-  // CÁLCULOS DO QUE FALTA COMER (RESTANTE)
-  // @ts-ignore
-  const goals = session?.user?.goals || { calories: 0, protein: 0, carbs: 0, fat: 0 };
-  // @ts-ignore
-  const eaten = session?.user?.dailyLog || { calories: 0, protein: 0, carbs: 0, fat: 0 };
-
-  const remaining = {
-    calories: Math.max(0, goals.calories - eaten.calories),
-    protein: Math.max(0, goals.protein - eaten.protein),
-    carbs: Math.max(0, goals.carbs - eaten.carbs),
-    fat: Math.max(0, goals.fat - eaten.fat),
+  const toggleNutrient = async (key: string) => {
+      const currentVal = tempGoals[key] || 0;
+      const newVal = currentVal > 0 ? 0 : 100;
+      const updated = { ...tempGoals, [key]: newVal };
+      setTempGoals(updated);
+      await fetch('/api/user/update-goals', { method: 'POST', body: JSON.stringify({ [key]: newVal }) });
+      await update({ goals: updated });
   };
 
-  // Percentagem para a barra de progresso (opcional, mas visual)
-  const progress = goals.calories > 0 ? Math.min(100, (eaten.calories / goals.calories) * 100) : 0;
+  // CÁLCULOS VISUAIS
+  // @ts-ignore
+  const goals = session?.user?.goals || {};
+  
+  // Usamos o dailyLog do estado local para ser instantâneo
+  const currentCalories = dailyLog.calories || 0;
+  const goalCalories = goals.calories || 2000;
+  
+  const remaining = {
+    calories: Math.max(0, goalCalories - currentCalories),
+    protein: Math.max(0, (goals.protein || 0) - (dailyLog.protein || 0)),
+    carbs: Math.max(0, (goals.carbs || 0) - (dailyLog.carbs || 0)),
+    fat: Math.max(0, (goals.fat || 0) - (dailyLog.fat || 0)),
+  };
+
+  const progressPct = goalCalories > 0 ? Math.min(100, (currentCalories / goalCalories) * 100) : 0;
+  
+  const activeExtras = AVAILABLE_NUTRIENTS.filter(n => (goals[n.key] || 0) > 0);
 
   return (
     <div className="min-h-screen bg-[#F2F2F7] text-gray-900 font-sans pb-32 relative overflow-hidden">
       
-      {/* MENU SETTINGS (Igual ao anterior) */}
+      {/* SETTINGS DRAWER */}
       {showSettings && (
         <div className="fixed inset-0 z-50 flex justify-end">
-          <div className="absolute inset-0 bg-black/30 backdrop-blur-sm transition-opacity" onClick={() => setShowSettings(false)}></div>
-          <div className="relative w-[85%] max-w-sm h-full bg-white shadow-2xl p-6 flex flex-col animate-slide-left">
-            <div className="flex items-center justify-between mb-10">
-              <h2 className="text-2xl font-black tracking-tight">Definições</h2>
-              <button onClick={() => setShowSettings(false)} className="w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center text-gray-500 font-bold">✕</button>
+          <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setShowSettings(false)}></div>
+          <div className="relative w-[85%] max-w-sm h-full bg-white shadow-2xl p-6 flex flex-col animate-slide-left overflow-y-auto">
+            <div className="flex justify-between mb-8"><h2 className="text-2xl font-black">Definições</h2><button onClick={() => setShowSettings(false)}>✕</button></div>
+            
+            <div className="mb-8">
+                <h3 className="font-bold text-gray-400 text-xs uppercase mb-4">Monitorização</h3>
+                <div className="space-y-2">
+                    {AVAILABLE_NUTRIENTS.map((item) => {
+                        const isActive = (tempGoals[item.key] || 0) > 0;
+                        return (
+                            <button key={item.key} onClick={() => toggleNutrient(item.key)} className={`w-full flex items-center justify-between p-4 rounded-xl border-2 transition-all ${isActive ? 'border-black bg-gray-50' : 'border-gray-100'}`}>
+                                <span className="font-bold">{item.label}</span>
+                                {isActive && <span className="text-green-500 font-black">✓</span>}
+                            </button>
+                        )
+                    })}
+                </div>
             </div>
-            <div className="flex flex-col items-center mb-8 p-6 bg-gray-50 rounded-[2rem] border border-gray-100">
-              <div className="relative w-24 h-24 mb-4">
-                <img src={session?.user?.image || "https://ui-avatars.com/api/?name=User&background=random"} className="w-full h-full rounded-full border-4 border-white shadow-sm object-cover"/>
-              </div>
-              <h3 className="text-xl font-black text-gray-900">{session?.user?.name || "Utilizador"}</h3>
-              <p className="text-sm text-gray-500 font-medium">{session?.user?.email}</p>
-            </div>
-            <div className="space-y-3">
-               <button onClick={() => router.push('/onboarding')} className="w-full flex items-center gap-4 p-4 rounded-2xl bg-white border-2 border-gray-100 font-bold text-gray-700 hover:border-black hover:text-black transition-all">
-                 <span className="text-xl">✏️</span> Recalcular Metas
-               </button>
-            </div>
-            <div className="mt-auto">
-              <button onClick={() => signOut()} className="w-full p-5 rounded-2xl bg-red-50 text-red-600 font-bold flex items-center justify-center gap-2 hover:bg-red-100 transition-colors">
-                <LogOutIcon className="w-5 h-5"/> Terminar Sessão
-              </button>
-              <p className="text-center text-xs text-gray-300 mt-4 font-bold tracking-widest uppercase">NutriScan v1.0</p>
+            <div className="mt-auto space-y-3">
+              <button onClick={() => router.push('/onboarding')} className="w-full p-4 bg-gray-50 font-bold rounded-xl text-left">✏️ Recalcular Macros</button>
+              <button onClick={() => signOut()} className="w-full p-4 bg-red-50 text-red-600 font-bold rounded-xl flex items-center justify-center gap-2"><LogOutIcon className="w-5 h-5"/> Sair</button>
             </div>
           </div>
         </div>
@@ -140,133 +161,127 @@ export default function Home() {
 
       {/* HEADER */}
       <header className="fixed top-0 w-full bg-white/85 backdrop-blur-xl z-20 px-6 py-4 border-b border-gray-200/50 flex justify-between items-center">
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 bg-black rounded-xl flex items-center justify-center text-lg shadow-sm">🍎</div>
-          <h1 className="text-lg font-black tracking-tight text-gray-900">NutriScan</h1>
+        <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center text-lg shadow-sm">🍎</div>
+            <h1 className="text-lg font-black tracking-tight">NutriScan</h1>
         </div>
-        <button onClick={() => setShowSettings(true)} className="w-10 h-10 rounded-full bg-gray-100 overflow-hidden border-2 border-white shadow-sm active:scale-95 transition-transform">
-           {session?.user?.image ? (
-            <img src={session.user.image} alt="Perfil" className="w-full h-full object-cover"/>
-          ) : (<div className="w-full h-full flex items-center justify-center text-gray-400">👤</div>)}
+        <button onClick={() => setShowSettings(true)} className="w-10 h-10 rounded-full bg-gray-100 overflow-hidden border-2 border-white shadow-sm">
+           {session?.user?.image ? (<img src={session.user.image} className="w-full h-full object-cover"/>) : (<div className="w-full h-full flex items-center justify-center">👤</div>)}
         </button>
       </header>
 
-      <main className="pt-28 px-6 flex flex-col items-center w-full max-w-md mx-auto">
+      <main className="pt-24 px-6 flex flex-col items-center w-full max-w-md mx-auto">
         
-        {/* --- CARTÃO DE PROGRESSO (RESTANTE) --- */}
-        {/* @ts-ignore */}
-        {session?.user?.goals && session.user.goals.calories > 0 && (
-          <div className="w-full bg-black text-white p-6 rounded-[2rem] shadow-xl shadow-black/10 mb-8 animate-fade-in-up relative overflow-hidden">
-            
-            {/* Barra de Fundo (Progresso) */}
-            <div 
-                className="absolute top-0 left-0 h-full bg-white/10 transition-all duration-1000 ease-out" 
-                style={{ width: `${progress}%` }} 
-            />
+        {/* BOTÃO PARA O HISTÓRICO */}
+        <button onClick={() => router.push('/history')} className="w-full mb-6 bg-white p-4 rounded-[1.5rem] shadow-sm flex items-center justify-between group active:scale-95 transition-transform">
+            <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center text-xl">🗓️</div>
+                <div className="text-left">
+                    <p className="font-bold text-sm">Ver Histórico</p>
+                    <p className="text-xs text-gray-400">Consulta os dias anteriores</p>
+                </div>
+            </div>
+            <span className="text-gray-300 group-hover:text-black transition-colors">→</span>
+        </button>
 
-            <div className="relative z-10">
-                <div className="flex justify-between items-start mb-6">
+        {/* --- CARTÃO PRETO (Com Visualização de Progresso Clara) --- */}
+        {goalCalories > 0 && (
+          <div className="w-full bg-black text-white p-6 rounded-[2rem] shadow-xl shadow-black/10 mb-8 relative overflow-hidden">
+            
+            <div className="flex justify-between items-start mb-2 relative z-10">
                 <div>
                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
-                        {remaining.calories === 0 ? "META ATINGIDA! 🎉" : "RESTAM HOJE"}
+                        {remaining.calories === 0 ? "OBJETIVO CUMPRIDO" : "RESTAM HOJE"}
                     </p>
                     <h2 className="text-5xl font-black tracking-tighter">
                         {remaining.calories} <span className="text-xl text-gray-500 font-bold">kcal</span>
                     </h2>
                 </div>
-                <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center text-2xl">
-                    {remaining.calories === 0 ? "✅" : "🔥"}
-                </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-3">
-                <div className="bg-white/10 p-3 rounded-2xl border border-white/5">
-                    <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Prot</p>
-                    <p className="text-lg font-bold">{remaining.protein}g</p>
-                </div>
-                <div className="bg-white/10 p-3 rounded-2xl border border-white/5">
-                    <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Carb</p>
-                    <p className="text-lg font-bold">{remaining.carbs}g</p>
-                </div>
-                <div className="bg-white/10 p-3 rounded-2xl border border-white/5">
-                    <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Gord</p>
-                    <p className="text-lg font-bold">{remaining.fat}g</p>
-                </div>
+                <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center text-2xl animate-pulse">
+                    {remaining.calories === 0 ? "🎉" : "🔥"}
                 </div>
             </div>
+
+            {/* BARRA DE PROGRESSO VISUAL */}
+            <div className="w-full h-3 bg-gray-800 rounded-full mb-2 relative z-10 overflow-hidden">
+                <div 
+                    className="h-full bg-green-500 transition-all duration-700 ease-out" 
+                    style={{ width: `${progressPct}%` }}
+                ></div>
+            </div>
+            
+            {/* TEXTO DE ESTADO (Para saberes que contou) */}
+            <div className="flex justify-between text-xs font-bold text-gray-400 mb-6 relative z-10">
+                <span>{currentCalories} ingeridas</span>
+                <span>Meta: {goalCalories}</span>
+            </div>
+            
+            <div className="grid grid-cols-3 gap-3 mb-2 relative z-10">
+                <MiniMacro label="Prot" val={remaining.protein} />
+                <MiniMacro label="Carb" val={remaining.carbs} />
+                <MiniMacro label="Gord" val={remaining.fat} />
+            </div>
+
+            {activeExtras.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-white/10 grid grid-cols-3 gap-2 relative z-10">
+                    {activeExtras.map(ex => (
+                        <MiniMacro key={ex.key} label={ex.label} val={Math.max(0, (goals[ex.key] || 0) - (dailyLog[ex.key] || 0))} unit={ex.unit} />
+                    ))}
+                </div>
+            )}
           </div>
         )}
 
-        {/* FOTO */}
+        {/* CÂMARA */}
         <div className="relative w-full aspect-square bg-white rounded-[2.5rem] shadow-sm overflow-hidden border border-white mb-6">
-          {imagem ? (
-            <img src={imagem} className="w-full h-full object-cover" alt="Comida" />
-          ) : (
+          {imagem ? (<img src={imagem} className="w-full h-full object-cover" />) : (
             <div className="w-full h-full flex flex-col items-center justify-center bg-gray-50 text-gray-300">
-              <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mb-4 shadow-sm">
-                <CameraIcon className="w-8 h-8 opacity-30" />
-              </div>
-              <p className="font-bold text-gray-400 text-sm">Tira uma foto à tua refeição</p>
+              <CameraIcon className="w-16 h-16 opacity-20 mb-4" />
+              <p className="font-bold text-gray-400 text-sm">Fotografa a tua refeição</p>
             </div>
           )}
           {loading && (
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-md flex flex-col items-center justify-center text-white z-20 animate-fade-in">
-              <div className="w-12 h-12 border-[5px] border-white/20 border-t-white rounded-full animate-spin mb-5"></div>
-              <p className="font-bold text-sm tracking-widest uppercase animate-pulse">A analisar...</p>
+            <div className="absolute inset-0 bg-black/80 backdrop-blur-md flex flex-col items-center justify-center text-white z-20">
+              <div className="w-10 h-10 border-4 border-white/20 border-t-white rounded-full animate-spin mb-4"></div>
+              <p className="font-bold tracking-widest text-xs uppercase animate-pulse">Analisando...</p>
             </div>
           )}
         </div>
 
-        {/* RESULTADOS + BOTÃO DE ADICIONAR */}
+        {/* RESULTADOS + NOVO BOTÃO DE ADICIONAR */}
         {dados && (
-          <div className="w-full animate-slide-up space-y-4 pb-28">
-            <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
-              <div className="flex justify-between items-start mb-3">
-                <div>
-                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">DETETADO</p>
-                   <h2 className="text-2xl font-black text-gray-900 leading-none">{dados.nome}</h2>
-                </div>
-                <span className="bg-black text-white text-[10px] font-bold px-3 py-1.5 rounded-full">
-                  {dados.peso_estimado || "1 porção"}
-                </span>
-              </div>
-              <div className="pt-3 border-t border-gray-50 mt-2">
-                <p className="text-sm text-gray-600 leading-relaxed font-medium">{dados.descricao}</p>
-              </div>
+          <div className="w-full animate-slide-up pb-32">
+            <div className="bg-white p-5 rounded-[2rem] shadow-sm border border-gray-100 mb-4">
+                <h2 className="text-2xl font-black">{dados.nome}</h2>
+                <p className="text-gray-500 text-sm mt-1">{dados.descricao}</p>
             </div>
             
-            <div className="grid grid-cols-2 gap-3">
-              <MacroCard color="bg-orange-50 text-orange-600" icon={<FireIcon />} label="Calorias" value={dados.calorias} unit="kcal" />
-              <MacroCard color="bg-blue-50 text-blue-600" icon={<MuscleIcon />} label="Proteína" value={dados.proteina} unit="g" />
-              <MacroCard color="bg-green-50 text-green-600" icon={<WheatIcon />} label="Hidratos" value={dados.hidratos} unit="g" />
-              <MacroCard color="bg-yellow-50 text-yellow-600" icon={<DropIcon />} label="Gordura" value={dados.gordura} unit="g" />
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <MacroCard icon="🔥" label="Calorias" val={dados.calorias} unit="kcal" />
+              <MacroCard icon="🥩" label="Proteína" val={dados.proteina} unit="g" />
+              <MacroCard icon="🌾" label="Carbs" val={dados.hidratos} unit="g" />
+              <MacroCard icon="🥑" label="Gordura" val={dados.gordura} unit="g" />
             </div>
 
-            {/* 👇 BOTÃO DE ADICIONAR AO DIÁRIO */}
             <button 
               onClick={adicionarAoDiario}
-              disabled={addingMeal}
-              className="w-full bg-green-500 text-white font-bold py-4 rounded-[1.5rem] shadow-lg hover:bg-green-600 active:scale-95 transition-all flex items-center justify-center gap-2 mt-4"
+              disabled={addStatus !== 'idle'}
+              className={`w-full py-5 rounded-[1.5rem] font-bold text-lg shadow-xl flex items-center justify-center gap-3 transition-all duration-300 transform active:scale-95 ${
+                  addStatus === 'success' ? 'bg-green-500 text-white scale-105' : 'bg-black text-white hover:bg-gray-900'
+              }`}
             >
-              {addingMeal ? (
-                <span>A guardar...</span>
-              ) : (
-                <>
-                  <span className="text-xl">+</span> Adicionar ao Diário
-                </>
-              )}
+              {addStatus === 'idle' && <><span>Adicionar</span> <span className="text-xl font-light">|</span> <span className="text-xl">+{dados.calorias} kcal</span></>}
+              {addStatus === 'loading' && <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+              {addStatus === 'success' && <><span>Registado!</span> <span className="text-2xl">✅</span></>}
             </button>
-
           </div>
         )}
       </main>
-
-      {/* BOTÃO FLUTUANTE DA CÂMARA (Só aparece se não tivermos dados já analisados) */}
+      
       {!dados && (
-        <div className="fixed bottom-8 left-0 w-full flex justify-center z-30 px-6 pointer-events-none">
-            <button onClick={tirarFoto} disabled={loading} className="pointer-events-auto w-full max-w-sm bg-black text-white h-16 rounded-[2rem] shadow-2xl shadow-black/20 flex items-center justify-center gap-3 transition-all active:scale-95 hover:bg-gray-900 disabled:opacity-80 disabled:scale-100">
-            <CameraIcon className="w-6 h-6" />
-            <span className="font-bold text-lg tracking-tight">{imagem ? 'Nova Foto' : 'Escanear'}</span>
+        <div className="fixed bottom-8 left-0 w-full flex justify-center z-30 pointer-events-none">
+            <button onClick={tirarFoto} className="pointer-events-auto bg-black text-white h-16 px-8 rounded-full shadow-2xl flex items-center gap-3 font-bold text-lg active:scale-95 transition-transform">
+                <CameraIcon className="w-6 h-6" /> <span>Escanear</span>
             </button>
         </div>
       )}
@@ -274,25 +289,25 @@ export default function Home() {
   );
 }
 
-// COMPONENTES AUXILIARES E ÍCONES
-function MacroCard({ color, icon, label, value, unit }: any) {
-  return (
-    <div className={`${color} p-5 rounded-[1.8rem] flex flex-col items-start transition-transform active:scale-95`}>
-      <div className="mb-auto opacity-80 bg-white/50 p-2 rounded-xl">{icon}</div>
-      <div className="mt-3">
-        <p className="text-[10px] font-bold opacity-60 uppercase tracking-wider">{label}</p>
-        <div className="flex items-baseline gap-0.5">
-          <p className="text-2xl font-black tracking-tight">{value}</p>
-          <span className="text-xs font-bold opacity-60">{unit}</span>
+// COMPONENTES MINI (Para o cartão preto)
+function MiniMacro({ label, val, unit = "g" }: any) {
+    return (
+        <div className="bg-white/10 p-3 rounded-2xl border border-white/5">
+            <p className="text-[9px] text-gray-400 font-bold uppercase mb-0.5">{label}</p>
+            <p className="text-sm font-bold">{Math.round(val)}{unit}</p>
         </div>
-      </div>
-    </div>
-  );
+    )
+}
+
+function MacroCard({ icon, label, val, unit }: any) {
+    return (
+        <div className="bg-white p-4 rounded-[1.5rem] border border-gray-100 flex flex-col items-start">
+            <div className="text-2xl mb-2">{icon}</div>
+            <p className="text-[10px] text-gray-400 font-bold uppercase">{label}</p>
+            <p className="text-xl font-black">{val}{unit}</p>
+        </div>
+    )
 }
 
 const CameraIcon = ({ className }: { className?: string }) => (<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>);
 const LogOutIcon = ({ className }: { className?: string }) => (<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>);
-const FireIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-2.072-5.714-1-8.571C12.5 1.5 17 6.5 17 12a5 5 0 1 1-10 0c0-1 3-3 3-3"/><path d="M12 14v4"/><path d="M12 2v1"/></svg>);
-const MuscleIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 12c-3 0-4-3-4-3s2-2 3-2 3 2 3 2-1 3-4 3Z"/><path d="M6 5c2-2 4 2 6 7 2-5 4-9 6-7s-5 8-6 12"/></svg>);
-const WheatIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 22 17 7"/><path d="M12 6a2 2 0 0 1 2 2"/><path d="M16.14 8.79a3 3 0 0 1 4.54 1.3"/><path d="M16 11a3 3 0 0 1 3 3"/></svg>);
-const DropIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/></svg>);

@@ -21,12 +21,10 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          throw new Error("Dados inválidos");
-        }
+        if (!credentials?.email || !credentials?.password) throw new Error("Dados inválidos");
         await connectDB();
         const user = await User.findOne({ email: credentials.email }).select("+password");
-        if (!user || !user.password) throw new Error("Email ou password errados");
+        if (!user || !user.password) throw new Error("Email/Pass errados");
         const isMatch = await bcrypt.compare(credentials.password, user.password);
         if (!isMatch) throw new Error("Password errada");
         return user;
@@ -44,7 +42,9 @@ export const authOptions: NextAuthOptions = {
         // @ts-ignore
         session.user.goals = token.goals;
         // @ts-ignore
-        session.user.dailyLog = token.dailyLog; // 👇 Passar o log diário
+        session.user.dailyLog = token.dailyLog;
+        // @ts-ignore
+        session.user.history = token.history; // 👇 Passar histórico
       }
       return session;
     },
@@ -57,35 +57,29 @@ export const authOptions: NextAuthOptions = {
         token.goals = user.goals;
         // @ts-ignore
         token.dailyLog = user.dailyLog;
+        // @ts-ignore
+        token.history = user.history;
       }
 
+      // Refresh forçado da BD
       if (!user && token.email) {
         await connectDB();
         const dbUser = await User.findOne({ email: token.email }).lean();
-        
         if (dbUser) {
            // @ts-ignore
            token.onboardingCompleted = dbUser.onboardingCompleted;
            // @ts-ignore
            token.goals = dbUser.goals;
-           
-           // 👇 Lógica inteligente: Se mudou o dia, reseta o contador no visual
            // @ts-ignore
-           const logDate = new Date(dbUser.dailyLog?.date || 0);
-           const today = new Date();
-           const isSameDay = logDate.getDate() === today.getDate() && 
-                             logDate.getMonth() === today.getMonth() && 
-                             logDate.getFullYear() === today.getFullYear();
-           
+           token.dailyLog = dbUser.dailyLog;
            // @ts-ignore
-           token.dailyLog = isSameDay ? dbUser.dailyLog : { calories: 0, protein: 0, carbs: 0, fat: 0 };
+           token.history = dbUser.history; // 👇 Atualizar histórico
         }
       }
 
       if (trigger === "update" && session) {
-        if (session.onboardingCompleted !== undefined) token.onboardingCompleted = session.onboardingCompleted;
+        if (session.dailyLog) token.dailyLog = session.dailyLog;
         if (session.goals) token.goals = session.goals;
-        if (session.dailyLog) token.dailyLog = session.dailyLog; // Atualiza log
       }
 
       return token;
@@ -93,4 +87,4 @@ export const authOptions: NextAuthOptions = {
   },
   pages: { signIn: '/login' },
   secret: process.env.NEXTAUTH_SECRET,
-};  
+};
