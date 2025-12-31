@@ -70,9 +70,8 @@ export default function Home() {
     if (!dados) return;
     setAddStatus('loading');
     try {
-      // 👇 AQUI ESTAVA A FALHA! ADICIONEI O NOME AGORA.
       const payload: any = {
-          name: dados.nome, // <--- IMPORTANTE: Envia o nome para a BD
+          name: dados.nome, // Envia o nome para a BD
           calories: dados.calorias, protein: dados.proteina, carbs: dados.hidratos, fat: dados.gordura,
           fiber: dados.fibra, sugar: dados.acucar, sodium: dados.sodio, cholesterol: dados.colesterol
       };
@@ -160,8 +159,11 @@ export default function Home() {
       {/* HEADER */}
       <header className="fixed top-0 w-full bg-white/85 backdrop-blur-xl z-20 px-6 py-4 border-b border-gray-200/50 flex justify-between items-center">
         <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center text-lg shadow-sm">🍎</div>
-            <h1 className="text-lg font-black tracking-tight">NutriScan</h1>
+            {/* 👇 AQUI ESTÁ A MUDANÇA: Substituí o 🍎 pela tua imagem */}
+            <div className="w-10 h-10 rounded-xl overflow-hidden shadow-sm border border-gray-100">
+                <img src="icon-v2.jpg" alt="Logo" className="w-full h-full object-cover" />
+            </div>
+            <h1 className="text-lg font-black tracking-tight text-gray-900">NutriScan</h1>
         </div>
         <button onClick={() => setShowSettings(true)} className="w-10 h-10 rounded-full bg-gray-100 overflow-hidden border-2 border-white shadow-sm active:scale-95 transition-transform">
            {session?.user?.image ? (<img src={session.user.image} className="w-full h-full object-cover"/>) : (<div className="w-full h-full flex items-center justify-center">👤</div>)}
@@ -170,7 +172,7 @@ export default function Home() {
 
       <main className="pt-24 px-6 flex flex-col items-center w-full max-w-md mx-auto">
         
-        {/* 👇 SAUDAÇÃO PERSONALIZADA */}
+        {/* SAUDAÇÃO PERSONALIZADA */}
         <div className="w-full mb-4">
             <h1 className="text-3xl font-black text-gray-900 tracking-tight">
                 Olá, <span className="text-gray-500">{firstName}</span> 👋
