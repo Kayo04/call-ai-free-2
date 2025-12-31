@@ -23,7 +23,7 @@ export const metadata: Metadata = {
     title: "NutriScan",
   },
   icons: {
-    icon: "/favicon.ico",
+    icon: "/icon-v2.jpg",
     apple: "/icon-v2.jpg",
   },
 };
