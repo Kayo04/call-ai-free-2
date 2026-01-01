@@ -1,23 +1,23 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Camera, CameraResultType } from '@capacitor/camera';
 import { signOut, useSession } from "next-auth/react";
 import { useRouter } from 'next/navigation';
 import { analisarImagemAction } from '@/app/action';
 
-// Lista de Nutrientes Disponíveis
-const AVAILABLE_NUTRIENTS = [
-    { key: 'fiber', label: 'Fibra', unit: 'g' },
-    { key: 'sugar', label: 'Açúcar', unit: 'g' },
-    { key: 'sodium', label: 'Sódio', unit: 'mg' },
-    { key: 'cholesterol', label: 'Colesterol', unit: 'mg' },
-    { key: 'potassium', label: 'Potássio', unit: 'mg' },
-    { key: 'calcium', label: 'Cálcio', unit: 'mg' },
-    { key: 'iron', label: 'Ferro', unit: 'mg' },
-    { key: 'vitC', label: 'Vitamina C', unit: 'mg' },
-    { key: 'vitD', label: 'Vitamina D', unit: 'iu' },
-];
+// Configuração dos Nutrientes
+const NUTRIENT_CONFIG: any = {
+    fiber: { label: 'Fibra', unit: 'g', daily: 30 },
+    sugar: { label: 'Açúcar', unit: 'g', daily: 50 },
+    sodium: { label: 'Sódio', unit: 'mg', daily: 2300 },
+    cholesterol: { label: 'Colesterol', unit: 'mg', daily: 300 },
+    potassium: { label: 'Potássio', unit: 'mg', daily: 3500 },
+    calcium: { label: 'Cálcio', unit: 'mg', daily: 1000 },
+    iron: { label: 'Ferro', unit: 'mg', daily: 14 },
+    vitC: { label: 'Vitamina C', unit: 'mg', daily: 90 },
+    vitD: { label: 'Vitamina D', unit: 'iu', daily: 600 },
+};
 
 export default function Home() {
   const { data: session, status, update } = useSession();
@@ -32,6 +32,25 @@ export default function Home() {
   // ESTADOS LOCAIS
   const [tempGoals, setTempGoals] = useState<any>({});
   const [dailyLog, setDailyLog] = useState<any>({ calories: 0, protein: 0, carbs: 0, fat: 0 });
+  const [searchTerm, setSearchTerm] = useState("");
+
+  // Travão para o loop infinito
+  const hasChecked = useRef(false);
+
+  const checkDayAndSync = async () => {
+      try {
+          const res = await fetch('/api/user/check-day');
+          if (res.ok) {
+              const json = await res.json();
+              if (json.dailyLog) {
+                  setDailyLog(json.dailyLog);
+                  await update({ dailyLog: json.dailyLog }); 
+              }
+          }
+      } catch (e) {
+          console.error("Erro a sincronizar dia", e);
+      }
+  };
 
   useEffect(() => {
     if (status === 'authenticated' && session?.user) {
@@ -41,9 +60,15 @@ export default function Home() {
       if (session.user.goals) setTempGoals(session.user.goals);
       // @ts-ignore
       if (session.user.dailyLog) setDailyLog(session.user.dailyLog);
+
+      if (!hasChecked.current) {
+          checkDayAndSync();
+          hasChecked.current = true;
+      }
     }
   }, [session, status, router]);
 
+  // Carregar os elementos da câmara (Visual Antigo e Bonito)
   useEffect(() => {
     import('@ionic/pwa-elements/loader').then(loader => { loader.defineCustomElements(window); });
   }, []);
@@ -71,9 +96,10 @@ export default function Home() {
     setAddStatus('loading');
     try {
       const payload: any = {
-          name: dados.nome, // Envia o nome para a BD
+          name: dados.nome, 
           calories: dados.calorias, protein: dados.proteina, carbs: dados.hidratos, fat: dados.gordura,
-          fiber: dados.fibra, sugar: dados.acucar, sodium: dados.sodio, cholesterol: dados.colesterol
+          fiber: dados.fibra, sugar: dados.acucar, sodium: dados.sodio, cholesterol: dados.colesterol,
+          potassium: dados.potassio, calcium: dados.calcio, iron: dados.ferro, vitC: dados.vitaminaC, vitD: dados.vitaminaD
       };
       
       const res = await fetch('/api/user/add-meal', { method: 'POST', body: JSON.stringify(payload) });
@@ -98,16 +124,35 @@ export default function Home() {
     }
   };
 
-  const toggleNutrient = async (key: string) => {
-      const currentVal = tempGoals[key] || 0;
-      const newVal = currentVal > 0 ? 0 : 100;
-      const updated = { ...tempGoals, [key]: newVal };
+  const addNutrient = async (key: string) => {
+      const estimated = NUTRIENT_CONFIG[key].daily;
+      const updated = { ...tempGoals, [key]: estimated };
       setTempGoals(updated);
-      await fetch('/api/user/update-goals', { method: 'POST', body: JSON.stringify({ [key]: newVal }) });
+      setSearchTerm("");
+      await fetch('/api/user/update-goals', { method: 'POST', body: JSON.stringify({ [key]: estimated }) });
       await update({ goals: updated });
   };
 
-  // CÁLCULOS VISUAIS
+  const removeNutrient = async (key: string) => {
+      const updated = { ...tempGoals, [key]: 0 };
+      setTempGoals(updated);
+      await fetch('/api/user/update-goals', { method: 'POST', body: JSON.stringify({ [key]: 0 }) });
+      await update({ goals: updated });
+  };
+
+  const updateGoalValue = async (key: string, val: string) => {
+      const num = Number(val);
+      const updated = { ...tempGoals, [key]: num };
+      setTempGoals(updated);
+      await fetch('/api/user/update-goals', { method: 'POST', body: JSON.stringify({ [key]: num }) });
+      await update({ goals: updated });
+  }
+
+  const activeKeys = Object.keys(NUTRIENT_CONFIG).filter(k => (tempGoals[k] || 0) > 0);
+  const availableToAdd = Object.keys(NUTRIENT_CONFIG)
+    .filter(k => (tempGoals[k] || 0) === 0)
+    .filter(k => NUTRIENT_CONFIG[k].label.toLowerCase().includes(searchTerm.toLowerCase()));
+
   // @ts-ignore
   const goals = session?.user?.goals || {};
   const currentCalories = dailyLog.calories || 0;
@@ -121,7 +166,6 @@ export default function Home() {
   };
 
   const progressPct = goalCalories > 0 ? Math.min(100, (currentCalories / goalCalories) * 100) : 0;
-  const activeExtras = AVAILABLE_NUTRIENTS.filter(n => (goals[n.key] || 0) > 0);
   const firstName = session?.user?.name?.split(' ')[0] || "Visitante";
 
   return (
@@ -132,36 +176,75 @@ export default function Home() {
         <div className="fixed inset-0 z-50 flex justify-end">
           <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setShowSettings(false)}></div>
           <div className="relative w-[85%] max-w-sm h-full bg-white shadow-2xl p-6 flex flex-col animate-slide-left overflow-y-auto">
-            <div className="flex justify-between mb-8"><h2 className="text-2xl font-black">Definições</h2><button onClick={() => setShowSettings(false)}>✕</button></div>
+            <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-black">Metas</h2>
+                <button onClick={() => setShowSettings(false)} className="w-8 h-8 bg-gray-100 rounded-full font-bold">✕</button>
+            </div>
             
             <div className="mb-8">
-                <h3 className="font-bold text-gray-400 text-xs uppercase mb-4">Monitorização</h3>
-                <div className="space-y-2">
-                    {AVAILABLE_NUTRIENTS.map((item) => {
-                        const isActive = (tempGoals[item.key] || 0) > 0;
-                        return (
-                            <button key={item.key} onClick={() => toggleNutrient(item.key)} className={`w-full flex items-center justify-between p-4 rounded-xl border-2 transition-all ${isActive ? 'border-black bg-gray-50' : 'border-gray-100'}`}>
-                                <span className="font-bold">{item.label}</span>
-                                {isActive && <span className="text-green-500 font-black">✓</span>}
-                            </button>
-                        )
-                    })}
+                <h3 className="font-bold text-gray-400 text-xs uppercase mb-4">Os teus Nutrientes</h3>
+                
+                <div className="space-y-3 mb-6">
+                    {activeKeys.length === 0 && <p className="text-sm text-gray-400 italic">Nenhuma meta extra selecionada.</p>}
+                    
+                    {activeKeys.map(key => (
+                        <div key={key} className="bg-gray-50 p-3 rounded-xl border border-gray-100 flex items-center justify-between">
+                            <div>
+                                <p className="font-bold text-sm">{NUTRIENT_CONFIG[key].label}</p>
+                                <p className="text-[10px] text-gray-400">Estimado: {NUTRIENT_CONFIG[key].daily}{NUTRIENT_CONFIG[key].unit}</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <input 
+                                    type="number" 
+                                    value={tempGoals[key]} 
+                                    onChange={(e) => updateGoalValue(key, e.target.value)}
+                                    className="w-16 p-1 text-center bg-white rounded-md border text-sm font-bold"
+                                />
+                                <span className="text-xs font-bold text-gray-400">{NUTRIENT_CONFIG[key].unit}</span>
+                                <button onClick={() => removeNutrient(key)} className="ml-2 text-red-400 font-bold p-1">✕</button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                <h3 className="font-bold text-gray-400 text-xs uppercase mb-2">Adicionar Meta</h3>
+                <input 
+                    type="text" 
+                    placeholder="Procurar (ex: Sódio, Açúcar...)" 
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    className="w-full p-3 bg-gray-100 rounded-xl mb-3 text-sm outline-none focus:ring-2 ring-black/10"
+                />
+                
+                <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {availableToAdd.map(key => (
+                        <button 
+                            key={key} 
+                            onClick={() => addNutrient(key)}
+                            className="w-full flex items-center justify-between p-3 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors text-left"
+                        >
+                            <span className="font-bold text-sm">{NUTRIENT_CONFIG[key].label}</span>
+                            <span className="text-xs bg-black text-white px-2 py-1 rounded-md font-bold">+ Adicionar</span>
+                        </button>
+                    ))}
+                    {availableToAdd.length === 0 && searchTerm !== "" && (
+                        <p className="text-sm text-gray-400 text-center py-2">Não encontrado.</p>
+                    )}
                 </div>
             </div>
+
             <div className="mt-auto space-y-3">
-              <button onClick={() => router.push('/onboarding')} className="w-full p-4 bg-gray-50 font-bold rounded-xl text-left">✏️ Recalcular Macros</button>
+              <button onClick={() => router.push('/onboarding')} className="w-full p-4 bg-gray-50 font-bold rounded-xl text-left">✏️ Recalcular Macros Principais</button>
               <button onClick={() => signOut()} className="w-full p-4 bg-red-50 text-red-600 font-bold rounded-xl flex items-center justify-center gap-2"><LogOutIcon className="w-5 h-5"/> Sair</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* HEADER */}
       <header className="fixed top-0 w-full bg-white/85 backdrop-blur-xl z-20 px-6 py-4 border-b border-gray-200/50 flex justify-between items-center">
         <div className="flex items-center gap-2">
-            {/* 👇 AQUI ESTÁ A MUDANÇA: Substituí o 🍎 pela tua imagem */}
             <div className="w-10 h-10 rounded-xl overflow-hidden shadow-sm border border-gray-100">
-                <img src="icon-v2.jpg" alt="Logo" className="w-full h-full object-cover" />
+                <img src="/icon-v2.jpg" alt="Logo" className="w-full h-full object-cover" />
             </div>
             <h1 className="text-lg font-black tracking-tight text-gray-900">NutriScan</h1>
         </div>
@@ -172,14 +255,12 @@ export default function Home() {
 
       <main className="pt-24 px-6 flex flex-col items-center w-full max-w-md mx-auto">
         
-        {/* SAUDAÇÃO PERSONALIZADA */}
         <div className="w-full mb-4">
             <h1 className="text-3xl font-black text-gray-900 tracking-tight">
                 Olá, <span className="text-gray-500">{firstName}</span> 👋
             </h1>
         </div>
 
-        {/* BOTÃO PARA O HISTÓRICO */}
         <button onClick={() => router.push('/history')} className="w-full mb-6 bg-white p-4 rounded-[1.5rem] shadow-sm flex items-center justify-between group active:scale-95 transition-transform">
             <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center text-xl">🗓️</div>
@@ -191,7 +272,6 @@ export default function Home() {
             <span className="text-gray-300 group-hover:text-black transition-colors">→</span>
         </button>
 
-        {/* --- CARTÃO PRETO --- */}
         {goalCalories > 0 && (
           <div className="w-full bg-black text-white p-6 rounded-[2rem] shadow-xl shadow-black/10 mb-8 relative overflow-hidden">
             
@@ -209,7 +289,6 @@ export default function Home() {
                 </div>
             </div>
 
-            {/* BARRA DE PROGRESSO VISUAL */}
             <div className="w-full h-3 bg-gray-800 rounded-full mb-2 relative z-10 overflow-hidden">
                 <div 
                     className="h-full bg-green-500 transition-all duration-700 ease-out" 
@@ -217,7 +296,6 @@ export default function Home() {
                 ></div>
             </div>
             
-            {/* TEXTO DE ESTADO */}
             <div className="flex justify-between text-xs font-bold text-gray-400 mb-6 relative z-10">
                 <span>{currentCalories} ingeridas</span>
                 <span>Meta: {goalCalories}</span>
@@ -229,17 +307,21 @@ export default function Home() {
                 <MiniMacro label="Gord" val={remaining.fat} />
             </div>
 
-            {activeExtras.length > 0 && (
+            {activeKeys.length > 0 && (
                 <div className="mt-4 pt-4 border-t border-white/10 grid grid-cols-3 gap-2 relative z-10">
-                    {activeExtras.map(ex => (
-                        <MiniMacro key={ex.key} label={ex.label} val={Math.max(0, (goals[ex.key] || 0) - (dailyLog[ex.key] || 0))} unit={ex.unit} />
+                    {activeKeys.map(key => (
+                        <MiniMacro 
+                            key={key} 
+                            label={NUTRIENT_CONFIG[key].label} 
+                            val={Math.max(0, (goals[key] || 0) - (dailyLog[key] || 0))} 
+                            unit={NUTRIENT_CONFIG[key].unit} 
+                        />
                     ))}
                 </div>
             )}
           </div>
         )}
 
-        {/* CÂMARA */}
         <div className="relative w-full aspect-square bg-white rounded-[2.5rem] shadow-sm overflow-hidden border border-white mb-6">
           {imagem ? (<img src={imagem} className="w-full h-full object-cover" />) : (
             <div className="w-full h-full flex flex-col items-center justify-center bg-gray-50 text-gray-300">
@@ -255,7 +337,6 @@ export default function Home() {
           )}
         </div>
 
-        {/* RESULTADOS + BOTÃO DE ADICIONAR */}
         {dados && (
           <div className="w-full animate-slide-up pb-32">
             <div className="bg-white p-5 rounded-[2rem] shadow-sm border border-gray-100 mb-4">
@@ -268,6 +349,29 @@ export default function Home() {
               <MacroCard icon="🥩" label="Proteína" val={dados.proteina} unit="g" />
               <MacroCard icon="🌾" label="Carbs" val={dados.hidratos} unit="g" />
               <MacroCard icon="🥑" label="Gordura" val={dados.gordura} unit="g" />
+              
+              {activeKeys.map(key => {
+                  let aiValue = 0;
+                  if (key === 'fiber') aiValue = dados.fibra;
+                  if (key === 'sugar') aiValue = dados.acucar;
+                  if (key === 'sodium') aiValue = dados.sodio;
+                  if (key === 'cholesterol') aiValue = dados.colesterol;
+                  if (key === 'potassium') aiValue = dados.potassio;
+                  if (key === 'calcium') aiValue = dados.calcio;
+                  if (key === 'iron') aiValue = dados.ferro;
+                  if (key === 'vitC') aiValue = dados.vitaminaC;
+                  if (key === 'vitD') aiValue = dados.vitaminaD;
+
+                  return (
+                      <MacroCard 
+                        key={key} 
+                        icon="🧪" 
+                        label={NUTRIENT_CONFIG[key].label} 
+                        val={aiValue || 0} 
+                        unit={NUTRIENT_CONFIG[key].unit} 
+                      />
+                  );
+              })}
             </div>
 
             <button 
@@ -296,12 +400,26 @@ export default function Home() {
   );
 }
 
-// COMPONENTES MINI
 function MiniMacro({ label, val, unit = "g" }: any) {
-    return (<div className="bg-white/10 p-3 rounded-2xl border border-white/5"><p className="text-[9px] text-gray-400 font-bold uppercase mb-0.5">{label}</p><p className="text-sm font-bold">{Math.round(val)}{unit}</p></div>)
+    return (
+        <div className="bg-white/10 p-3 rounded-2xl border border-white/5">
+            <p className="text-[9px] text-gray-400 font-bold uppercase mb-0.5">{label}</p>
+            <p className="text-sm font-bold">{Math.round(val)}{unit}</p>
+        </div>
+    )
 }
+
 function MacroCard({ icon, label, val, unit }: any) {
-    return (<div className="bg-white p-4 rounded-[1.5rem] border border-gray-100 flex flex-col items-start"><div className="text-2xl mb-2">{icon}</div><p className="text-[10px] text-gray-400 font-bold uppercase">{label}</p><p className="text-xl font-black">{val}{unit}</p></div>)
+    return (
+        <div className="bg-white p-4 rounded-[1.5rem] border border-gray-100 flex flex-col items-start min-h-[100px] justify-center">
+            <div className="flex items-center gap-2 mb-1">
+                <span className="text-xl">{icon}</span>
+                <p className="text-[10px] text-gray-400 font-bold uppercase">{label}</p>
+            </div>
+            <p className="text-2xl font-black tracking-tight">{Math.round(val)}{unit}</p>
+        </div>
+    )
 }
+
 const CameraIcon = ({ className }: { className?: string }) => (<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>);
 const LogOutIcon = ({ className }: { className?: string }) => (<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>);
