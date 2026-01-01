@@ -68,7 +68,7 @@ export default function Home() {
     }
   }, [session, status, router]);
 
-  // Carregar os elementos da câmara (Visual Antigo e Bonito)
+  // Carregar os elementos da câmara
   useEffect(() => {
     import('@ionic/pwa-elements/loader').then(loader => { loader.defineCustomElements(window); });
   }, []);
@@ -158,12 +158,9 @@ export default function Home() {
   const currentCalories = dailyLog.calories || 0;
   const goalCalories = goals.calories || 2000;
   
-  const remaining = {
-    calories: Math.max(0, goalCalories - currentCalories),
-    protein: Math.max(0, (goals.protein || 0) - (dailyLog.protein || 0)),
-    carbs: Math.max(0, (goals.carbs || 0) - (dailyLog.carbs || 0)),
-    fat: Math.max(0, (goals.fat || 0) - (dailyLog.fat || 0)),
-  };
+  // Cálculo inteligente para o Cartão Principal
+  const caloriesRemaining = goalCalories - currentCalories;
+  const isCaloriesMet = caloriesRemaining <= 0;
 
   const progressPct = goalCalories > 0 ? Math.min(100, (currentCalories / goalCalories) * 100) : 0;
   const firstName = session?.user?.name?.split(' ')[0] || "Visitante";
@@ -277,15 +274,18 @@ export default function Home() {
             
             <div className="flex justify-between items-start mb-2 relative z-10">
                 <div>
+                    {/* Se acabou as calorias, muda o texto */}
                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
-                        {remaining.calories === 0 ? "OBJETIVO CUMPRIDO" : "RESTAM HOJE"}
+                        {isCaloriesMet ? "OBJETIVO SUPERADO" : "RESTAM HOJE"}
                     </p>
                     <h2 className="text-5xl font-black tracking-tighter">
-                        {remaining.calories} <span className="text-xl text-gray-500 font-bold">kcal</span>
+                        {/* Se acabou, mostra o TOTAL consumido. Se falta, mostra quanto falta. */}
+                        {isCaloriesMet ? currentCalories : caloriesRemaining} 
+                        <span className="text-xl text-gray-500 font-bold">kcal</span>
                     </h2>
                 </div>
                 <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center text-2xl animate-pulse">
-                    {remaining.calories === 0 ? "🎉" : "🔥"}
+                    {isCaloriesMet ? "🎉" : "🔥"}
                 </div>
             </div>
 
@@ -302,18 +302,20 @@ export default function Home() {
             </div>
             
             <div className="grid grid-cols-3 gap-3 mb-2 relative z-10">
-                <MiniMacro label="Prot" val={remaining.protein} />
-                <MiniMacro label="Carb" val={remaining.carbs} />
-                <MiniMacro label="Gord" val={remaining.fat} />
+                <MiniMacro label="Prot" current={dailyLog.protein} goal={goals.protein} />
+                <MiniMacro label="Carb" current={dailyLog.carbs} goal={goals.carbs} />
+                <MiniMacro label="Gord" current={dailyLog.fat} goal={goals.fat} />
             </div>
 
+            {/* EXTRAS ATIVOS */}
             {activeKeys.length > 0 && (
                 <div className="mt-4 pt-4 border-t border-white/10 grid grid-cols-3 gap-2 relative z-10">
                     {activeKeys.map(key => (
                         <MiniMacro 
                             key={key} 
                             label={NUTRIENT_CONFIG[key].label} 
-                            val={Math.max(0, (goals[key] || 0) - (dailyLog[key] || 0))} 
+                            current={dailyLog[key]} 
+                            goal={goals[key]} 
                             unit={NUTRIENT_CONFIG[key].unit} 
                         />
                     ))}
@@ -400,11 +402,19 @@ export default function Home() {
   );
 }
 
-function MiniMacro({ label, val, unit = "g" }: any) {
+// COMPONENTE INTELIGENTE: MOSTRA "CONCLUÍDO" OU O QUE FALTA
+function MiniMacro({ label, current = 0, goal = 0, unit = "g" }: any) {
+    const remaining = Math.max(0, goal - current);
+    const isMet = current >= goal;
+
     return (
-        <div className="bg-white/10 p-3 rounded-2xl border border-white/5">
-            <p className="text-[9px] text-gray-400 font-bold uppercase mb-0.5">{label}</p>
-            <p className="text-sm font-bold">{Math.round(val)}{unit}</p>
+        <div className={`p-3 rounded-2xl border transition-all ${isMet ? 'bg-green-500 border-green-400' : 'bg-white/10 border-white/5'}`}>
+            <p className={`text-[9px] font-bold uppercase mb-0.5 ${isMet ? 'text-white/80' : 'text-gray-400'}`}>
+                {isMet ? "CONCLUÍDO" : label}
+            </p>
+            <p className={`text-sm font-bold ${isMet ? 'text-white' : 'text-white'}`}>
+                {isMet ? `${Math.round(current)}${unit}` : `${Math.round(remaining)}${unit}`}
+            </p>
         </div>
     )
 }
