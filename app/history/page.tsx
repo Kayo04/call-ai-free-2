@@ -4,18 +4,32 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 
+// Configuração para sabermos as unidades e nomes
+const NUTRIENT_CONFIG: any = {
+    fiber: { label: 'Fibra', unit: 'g', color: 'teal' },
+    sugar: { label: 'Açúcar', unit: 'g', color: 'pink' },
+    sodium: { label: 'Sódio', unit: 'mg', color: 'slate' },
+    cholesterol: { label: 'Colest.', unit: 'mg', color: 'purple' },
+    potassium: { label: 'Potássio', unit: 'mg', color: 'indigo' },
+    calcium: { label: 'Cálcio', unit: 'mg', color: 'stone' },
+    iron: { label: 'Ferro', unit: 'mg', color: 'red' },
+    vitC: { label: 'Vit C', unit: 'mg', color: 'orange' },
+    vitD: { label: 'Vit D', unit: 'iu', color: 'sky' },
+};
+
 export default function HistoryPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   
-  // Data que estamos a ver no calendário
   const [viewDate, setViewDate] = useState(new Date());
   const [selectedLog, setSelectedLog] = useState<any>(null);
 
   const [history, setHistory] = useState<any[]>([]);
   const [dailyLog, setDailyLog] = useState<any>({ calories: 0, meals: [] });
+  
   // @ts-ignore
-  const userGoal = session?.user?.goals?.calories || 2000;
+  const userGoals = session?.user?.goals || {};
+  const goalCalories = userGoals.calories || 2000;
 
   useEffect(() => {
     // @ts-ignore
@@ -34,31 +48,27 @@ export default function HistoryPage() {
 
   if (status === "loading") return <div className="min-h-screen bg-[#F2F2F7] p-6 text-center pt-20">A carregar...</div>;
   
-  // Dias do mês que estamos a ver
   const daysInMonth = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0).getDate();
   const daysArray = Array.from({ length: daysInMonth }, (_, i) => i + 1);
   const today = new Date();
 
-  // Função para mudar de mês
   const changeMonth = (offset: number) => {
       const newDate = new Date(viewDate);
       newDate.setMonth(newDate.getMonth() + offset);
       setViewDate(newDate);
-      setSelectedLog(null); // Limpa a seleção ao mudar de mês
+      setSelectedLog(null);
   };
 
   const getLogForDay = (day: number) => {
     const targetMonth = viewDate.getMonth();
     const targetYear = viewDate.getFullYear();
 
-    // 1. Verifica Histórico
     const historyMatch = history.find((h: any) => {
       const d = new Date(h.date);
       return d.getDate() === day && d.getMonth() === targetMonth && d.getFullYear() === targetYear;
     });
     if (historyMatch) return historyMatch;
 
-    // 2. Verifica Hoje (apenas se estivermos a ver o mês atual)
     const activeLogDate = new Date(dailyLog.date || 0);
     if (activeLogDate.getDate() === day && 
         activeLogDate.getMonth() === targetMonth && 
@@ -68,7 +78,11 @@ export default function HistoryPage() {
     return null;
   };
 
-  // Calcular Progresso do Mês
+  const checkSuccess = (current: number, target: number) => {
+      if (!target || target === 0) return false;
+      return current >= (target * 0.95) && current <= (target * 1.05);
+  };
+
   const successCount = daysArray.reduce((acc, day) => {
       const log = getLogForDay(day);
       if (!log) return acc;
@@ -77,15 +91,17 @@ export default function HistoryPage() {
       if (log.metGoal !== undefined) {
           isSuccess = log.metGoal;
       } else if (log.calories > 0) {
-          isSuccess = log.calories >= (userGoal * 0.9) && log.calories <= (userGoal * 1.1);
+          isSuccess = checkSuccess(log.calories, goalCalories);
       }
       return acc + (isSuccess ? 1 : 0);
   }, 0);
 
+  // Filtra APENAS os nutrientes que tu ativaste nas definições
+  const activeExtras = Object.keys(NUTRIENT_CONFIG).filter(key => (userGoals[key] || 0) > 0);
+
   return (
     <div className="min-h-screen bg-[#F2F2F7] text-gray-900 font-sans p-6 pb-32">
       
-      {/* Header com Navegação */}
       <div className="flex items-center justify-between mb-8">
         <button onClick={() => router.back()} className="w-10 h-10 bg-white rounded-full shadow-sm flex items-center justify-center font-bold active:scale-90 transition-transform">←</button>
         <div className="flex flex-col items-center">
@@ -96,7 +112,6 @@ export default function HistoryPage() {
       </div>
 
       <div className="bg-white rounded-[2.5rem] p-6 shadow-xl mb-8">
-        {/* Navegação de Meses */}
         <div className="flex justify-between items-center mb-6 px-2">
             <button onClick={() => changeMonth(-1)} className="p-2 text-gray-400 hover:text-black font-bold text-xl">❮</button>
             <h2 className="text-lg font-black capitalize">
@@ -105,7 +120,6 @@ export default function HistoryPage() {
             <button onClick={() => changeMonth(1)} className="p-2 text-gray-400 hover:text-black font-bold text-xl">❯</button>
         </div>
         
-        {/* Grelha do Calendário */}
         <div className="grid grid-cols-7 gap-3">
             {['D','S','T','Q','Q','S','S'].map((d, i) => (
                 <div key={i} className="text-center text-[10px] font-bold text-gray-300 mb-1">{d}</div>
@@ -116,12 +130,10 @@ export default function HistoryPage() {
                 const isToday = day === today.getDate() && viewDate.getMonth() === today.getMonth() && viewDate.getFullYear() === today.getFullYear();
                 const isSelected = selectedLog && new Date(selectedLog.date || new Date()).getDate() === day && viewDate.getMonth() === new Date(selectedLog.date).getMonth();
 
-                // LÓGICA DE CORES INTENSAS
-                let bg = "bg-gray-50 text-gray-300"; // Vazio
+                let bg = "bg-gray-50 text-gray-300";
                 
                 if (log && log.calories > 0) {
-                    const metGoal = log.metGoal !== undefined ? log.metGoal : (log.calories >= (userGoal * 0.9) && log.calories <= (userGoal * 1.1));
-                    
+                    const metGoal = log.metGoal !== undefined ? log.metGoal : checkSuccess(log.calories, goalCalories);
                     if (metGoal) {
                         bg = "bg-emerald-500 text-white shadow-md shadow-emerald-200";
                     } else {
@@ -129,13 +141,8 @@ export default function HistoryPage() {
                     }
                 }
 
-                if (isToday && !log) {
-                    bg = "ring-2 ring-black text-black font-bold";
-                }
-
-                if (isSelected) {
-                    bg = "bg-black text-white scale-110 shadow-xl z-10 ring-4 ring-white";
-                }
+                if (isToday && !log) bg = "ring-2 ring-black text-black font-bold";
+                if (isSelected) bg = "bg-black text-white scale-110 shadow-xl z-10 ring-4 ring-white";
 
                 return (
                     <button 
@@ -160,7 +167,6 @@ export default function HistoryPage() {
                   </h2>
               </div>
 
-              {/* Resumo do Dia */}
               <div className="bg-white p-6 rounded-[2rem] shadow-xl border border-gray-100">
                   <div className="flex justify-between items-start mb-6">
                     <div className="flex items-baseline gap-1">
@@ -170,11 +176,11 @@ export default function HistoryPage() {
                     
                     {selectedLog.calories > 0 && (
                         <div className={`px-3 py-1 rounded-full text-xs font-bold text-white ${
-                            (selectedLog.metGoal !== undefined ? selectedLog.metGoal : (selectedLog.calories >= userGoal * 0.9 && selectedLog.calories <= userGoal * 1.1)) 
+                            (selectedLog.metGoal !== undefined ? selectedLog.metGoal : checkSuccess(selectedLog.calories, goalCalories)) 
                             ? "bg-emerald-500" 
                             : "bg-red-500"
                         }`}>
-                            {(selectedLog.metGoal !== undefined ? selectedLog.metGoal : (selectedLog.calories >= userGoal * 0.9 && selectedLog.calories <= userGoal * 1.1)) ? "CUMPRIDO" : "FALHOU"}
+                            {(selectedLog.metGoal !== undefined ? selectedLog.metGoal : checkSuccess(selectedLog.calories, goalCalories)) ? "CUMPRIDO" : "FALHOU"}
                         </div>
                     )}
                   </div>
@@ -183,10 +189,18 @@ export default function HistoryPage() {
                       <MacroBox label="Prot" val={selectedLog.protein} />
                       <MacroBox label="Carb" val={selectedLog.carbs} />
                       <MacroBox label="Gord" val={selectedLog.fat} />
+
+                      {activeExtras.map(key => (
+                          <MacroBox 
+                            key={key}
+                            label={NUTRIENT_CONFIG[key].label} 
+                            val={selectedLog[key]} 
+                            unit={NUTRIENT_CONFIG[key].unit}
+                          />
+                      ))}
                   </div>
               </div>
 
-              {/* LISTA DE REFEIÇÕES */}
               <h3 className="text-xs font-bold text-gray-400 uppercase ml-4 mt-8 mb-3 tracking-wider">Refeições do dia</h3>
               
               {selectedLog.meals && selectedLog.meals.length > 0 ? (
@@ -194,12 +208,15 @@ export default function HistoryPage() {
                       {selectedLog.meals.slice().reverse().map((meal: any, idx: number) => (
                           <div key={idx} className="bg-white p-5 rounded-[2rem] flex justify-between items-stretch shadow-sm border border-gray-100/80 relative overflow-hidden group transition-all hover:shadow-md">
                               
-                              {/* Lado Esquerdo: Nome e Macros */}
                               <div className="flex-1 pr-4 flex flex-col justify-center">
-                                  <p className="font-black text-lg text-gray-900 mb-3 leading-tight">{meal.name || "Refeição"}</p>
+                                  {/* Nome e Hora */}
+                                  <div className="flex items-baseline gap-2 mb-3">
+                                      <p className="font-black text-lg text-gray-900 leading-tight">{meal.name || "Refeição"}</p>
+                                      {meal.time && <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{meal.time}</span>}
+                                  </div>
                                   
-                                  {/* 👇 AQUI ESTÃO OS NOVOS LABELS: PROT, CARB, GORD */}
                                   <div className="flex flex-wrap gap-2">
+                                    {/* 3 PRINCIPAIS */}
                                     <span className="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-blue-50 text-blue-600 flex items-center gap-1.5 leading-none">
                                         <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div> PROT {Math.round(meal.protein)}g
                                     </span>
@@ -209,10 +226,37 @@ export default function HistoryPage() {
                                     <span className="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-orange-50 text-orange-600 flex items-center gap-1.5 leading-none">
                                        <div className="w-1.5 h-1.5 rounded-full bg-orange-500"></div> GORD {Math.round(meal.fat)}g
                                     </span>
+
+                                    {/* 👇 CORRIGIDO: Agora usa 'activeExtras' para filtrar a lista 👇 */}
+                                    {activeExtras.map(key => {
+                                        const val = meal[key];
+                                        // Se a refeição não tiver valor para este nutriente, não mostra
+                                        if (!val || val === 0) return null;
+                                        
+                                        const color = NUTRIENT_CONFIG[key].color;
+                                        // Mapa de cores
+                                        let bg = "bg-gray-50"; let text = "text-gray-600"; let dot = "bg-gray-500";
+                                        
+                                        if(color === 'pink') { bg = "bg-pink-50"; text = "text-pink-600"; dot = "bg-pink-500"; }
+                                        if(color === 'teal') { bg = "bg-teal-50"; text = "text-teal-600"; dot = "bg-teal-500"; }
+                                        if(color === 'slate') { bg = "bg-slate-100"; text = "text-slate-600"; dot = "bg-slate-500"; }
+                                        if(color === 'purple') { bg = "bg-purple-50"; text = "text-purple-600"; dot = "bg-purple-500"; }
+                                        if(color === 'indigo') { bg = "bg-indigo-50"; text = "text-indigo-600"; dot = "bg-indigo-500"; }
+                                        if(color === 'stone') { bg = "bg-stone-100"; text = "text-stone-600"; dot = "bg-stone-500"; }
+                                        if(color === 'red') { bg = "bg-red-50"; text = "text-red-600"; dot = "bg-red-500"; }
+                                        if(color === 'orange') { bg = "bg-orange-50"; text = "text-orange-600"; dot = "bg-orange-500"; }
+                                        if(color === 'sky') { bg = "bg-sky-50"; text = "text-sky-600"; dot = "bg-sky-500"; }
+
+                                        return (
+                                            <span key={key} className={`text-[10px] font-bold px-2.5 py-1 rounded-lg flex items-center gap-1.5 leading-none ${bg} ${text}`}>
+                                                <div className={`w-1.5 h-1.5 rounded-full ${dot}`}></div>
+                                                {NUTRIENT_CONFIG[key].label.toUpperCase()} {Math.round(val)}{NUTRIENT_CONFIG[key].unit}
+                                            </span>
+                                        )
+                                    })}
                                   </div>
                               </div>
 
-                              {/* Lado Direito: Calorias */}
                               <div className="flex flex-col items-end justify-center pl-5 border-l border-gray-100">
                                   <span className="block font-black text-3xl text-gray-900 leading-none tracking-tight">{Math.round(meal.calories)}</span>
                                   <span className="text-[10px] text-gray-400 font-bold uppercase mt-1 tracking-wider">kcal</span>
@@ -232,11 +276,11 @@ export default function HistoryPage() {
   );
 }
 
-function MacroBox({ label, val }: any) {
+function MacroBox({ label, val, unit = "g" }: any) {
     return (
         <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 flex flex-col items-center justify-center">
             <p className="text-[9px] uppercase font-bold text-gray-400 mb-1 tracking-wider">{label}</p>
-            <p className="font-black text-lg">{Math.round(val || 0)}g</p>
+            <p className="font-black text-lg">{Math.round(val || 0)}<span className="text-xs ml-0.5 font-bold text-gray-400">{unit}</span></p>
         </div>
     )
 }

@@ -1,81 +1,74 @@
 import mongoose from "mongoose";
 
-const UserSchema = new mongoose.Schema(
-  {
-    name: { type: String, required: true },
-    email: { type: String, unique: true, required: true },
-    password: { type: String, select: false },
-    image: { type: String },
-    onboardingCompleted: { type: Boolean, default: false },
-    
-    info: {
-      age: { type: Number },
-      weight: { type: Number },
-      height: { type: Number },
-      gender: { type: String },
-      activity: { type: String },
-      goal: { type: String },
-      targetWeight: { type: Number }, 
-      targetDate: { type: Date },
-    },
+// Esquema da Refeição Individual
+const MealSchema = new mongoose.Schema({
+  name: String,
+  calories: Number,
+  protein: Number,
+  carbs: Number,
+  fat: Number,
+  
+  // 👇 AGORA O SEGURANÇA JÁ DEIXA ESTES ENTRAR
+  fiber: Number,
+  sugar: Number,
+  sodium: Number,
+  cholesterol: Number,
+  potassium: Number,
+  calcium: Number,
+  iron: Number,
+  vitC: Number,
+  vitD: Number,
+  
+  // 👇 E A HORA TAMBÉM
+  time: String 
+});
 
-    goals: {
-      calories: { type: Number, default: 0 },
-      protein: { type: Number, default: 0 },
-      carbs: { type: Number, default: 0 },
-      fat: { type: Number, default: 0 },
-      fiber: { type: Number, default: 0 },
-      sugar: { type: Number, default: 0 },
-      sodium: { type: Number, default: 0 },
-      cholesterol: { type: Number, default: 0 },
-      potassium: { type: Number, default: 0 },
-      calcium: { type: Number, default: 0 },
-      iron: { type: Number, default: 0 },
-      vitC: { type: Number, default: 0 },
-      vitD: { type: Number, default: 0 },
-    },
+// Esquema do Dia Completo
+const DayLogSchema = new mongoose.Schema({
+  date: Date,
+  calories: Number,
+  protein: Number,
+  carbs: Number,
+  fat: Number,
+  
+  // Totais do dia
+  fiber: Number,
+  sugar: Number,
+  sodium: Number,
+  
+  meals: [MealSchema], // Lista de refeições
+  metGoal: Boolean
+});
 
-    // O Diário de Hoje
-    dailyLog: {
-      date: { type: Date, default: Date.now },
-      // Totais
-      calories: { type: Number, default: 0 },
-      protein: { type: Number, default: 0 },
-      carbs: { type: Number, default: 0 },
-      fat: { type: Number, default: 0 },
-      fiber: { type: Number, default: 0 },
-      sugar: { type: Number, default: 0 },
-      sodium: { type: Number, default: 0 },
-      // 👇 LISTA DE REFEIÇÕES INDIVIDUAIS
-      meals: [{
-        name: { type: String },
-        calories: { type: Number },
-        protein: { type: Number },
-        carbs: { type: Number },
-        fat: { type: Number },
-        image: { type: String } // Opcional: se quiseres guardar a foto um dia
-      }]
-    },
-
-    // O Arquivo Passado
-    history: [{
-      date: { type: Date },
-      calories: { type: Number },
-      protein: { type: Number },
-      carbs: { type: Number },
-      fat: { type: Number },
-      metGoal: { type: Boolean },
-      // 👇 TAMBÉM GUARDAMOS AQUI
-      meals: [{
-        name: { type: String },
-        calories: { type: Number },
-        protein: { type: Number },
-        carbs: { type: Number },
-        fat: { type: Number }
-      }]
-    }]
+const UserSchema = new mongoose.Schema({
+  name: String,
+  email: { type: String, unique: true },
+  image: String,
+  password: { type: String, select: false },
+  
+  // Metas do utilizador
+  goals: {
+     calories: Number,
+     protein: Number,
+     carbs: Number,
+     fat: Number,
+     fiber: Number,
+     sugar: Number,
+     sodium: Number,
+     cholesterol: Number,
+     potassium: Number,
+     calcium: Number,
+     iron: Number,
+     vitC: Number,
+     vitD: Number,
   },
-  { timestamps: true }
-);
+  
+  dailyLog: DayLogSchema,
+  history: [DayLogSchema],
+  onboardingCompleted: { type: Boolean, default: false },
+}, { timestamps: true });
 
-export default mongoose.models.User || mongoose.model("User", UserSchema);
+// Evita erro de re-compilação do modelo
+const User = mongoose.models.User || mongoose.model("User", UserSchema);
+
+export default User;

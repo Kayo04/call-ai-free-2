@@ -95,11 +95,17 @@ export default function Home() {
     if (!dados) return;
     setAddStatus('loading');
     try {
+      // Captura a hora atual (ex: "14:30")
+      const horaAtual = new Date().toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
+
       const payload: any = {
           name: dados.nome, 
           calories: dados.calorias, protein: dados.proteina, carbs: dados.hidratos, fat: dados.gordura,
           fiber: dados.fibra, sugar: dados.acucar, sodium: dados.sodio, cholesterol: dados.colesterol,
-          potassium: dados.potassio, calcium: dados.calcio, iron: dados.ferro, vitC: dados.vitaminaC, vitD: dados.vitaminaD
+          potassium: dados.potassio, calcium: dados.calcio, iron: dados.ferro, vitC: dados.vitaminaC, vitD: dados.vitaminaD,
+          
+          // 👇 AQUI VAI A HORA
+          time: horaAtual 
       };
       
       const res = await fetch('/api/user/add-meal', { method: 'POST', body: JSON.stringify(payload) });
