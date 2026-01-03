@@ -8,7 +8,7 @@ const MealSchema = new mongoose.Schema({
   carbs: Number,
   fat: Number,
   
-  // 👇 AGORA O SEGURANÇA JÁ DEIXA ESTES ENTRAR
+  // Nutrientes Extra
   fiber: Number,
   sugar: Number,
   sodium: Number,
@@ -19,7 +19,7 @@ const MealSchema = new mongoose.Schema({
   vitC: Number,
   vitD: Number,
   
-  // 👇 E A HORA TAMBÉM
+  // Hora
   time: String 
 });
 
@@ -36,7 +36,7 @@ const DayLogSchema = new mongoose.Schema({
   sugar: Number,
   sodium: Number,
   
-  meals: [MealSchema], // Lista de refeições
+  meals: [MealSchema], 
   metGoal: Boolean
 });
 
@@ -45,22 +45,35 @@ const UserSchema = new mongoose.Schema({
   email: { type: String, unique: true },
   image: String,
   password: { type: String, select: false },
+
+  // 👇 NOVO: Informações do Perfil (Essencial para o novo Onboarding)
+  info: {
+    age: Number,
+    weight: Number,
+    height: Number,
+    gender: String,
+    activity: String,
+    goal: String,
+    targetWeight: Number,
+    targetDate: Date,
+    bodyFat: Number // 👈 AQUI ESTÁ A CHAVE PARA A LÓGICA "GREEK GOD"
+  },
   
   // Metas do utilizador
   goals: {
-     calories: Number,
-     protein: Number,
-     carbs: Number,
-     fat: Number,
-     fiber: Number,
-     sugar: Number,
-     sodium: Number,
-     cholesterol: Number,
-     potassium: Number,
-     calcium: Number,
-     iron: Number,
-     vitC: Number,
-     vitD: Number,
+    calories: Number,
+    protein: Number,
+    carbs: Number,
+    fat: Number,
+    fiber: Number,
+    sugar: Number,
+    sodium: Number,
+    cholesterol: Number,
+    potassium: Number,
+    calcium: Number,
+    iron: Number,
+    vitC: Number,
+    vitD: Number,
   },
   
   dailyLog: DayLogSchema,

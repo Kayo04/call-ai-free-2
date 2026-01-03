@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 
@@ -16,6 +16,7 @@ export default function OnboardingPage() {
     age: '',
     height: '', 
     weight: '', 
+    bodyFat: '', // 👈 1. NOVO CAMPO NO ESTADO
     targetWeight: '', 
     activity: 'sedentary',
     goal: 'lose',
@@ -52,6 +53,12 @@ export default function OnboardingPage() {
       const data = await res.json(); 
 
       if (res.ok) {
+        
+        // 👈 3. ALERTA INTELIGENTE DO "GREEK GOD"
+        if (data.adjustedGoal && data.adjustedGoal !== formData.goal) {
+            alert(`⚠️ NOTA IMPORTANTE:\n\nA IA ajustou o teu plano para "RECOMPOSIÇÃO" (Perder Gordura + Ganhar Músculo).\n\nMotivo: Como tens >15% de gordura corporal, fazer um Bulking agora só te faria ganhar mais gordura. Vamos limpar primeiro!`);
+        }
+
         // Atualiza sessão e redireciona
         await update({ 
             onboardingCompleted: true,
@@ -110,32 +117,50 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        {/* --- PASSO 2: Medidas --- */}
+        {/* --- PASSO 2: Medidas (COM GORDURA CORPORAL) --- */}
         {step === 2 && (
           <div className="animate-fade-in-up">
             <h1 className="text-3xl font-black mb-2">As tuas medidas</h1>
-            <p className="text-gray-500 mb-8">Peso atual e altura.</p>
+            <p className="text-gray-500 mb-8">Necessário para a precisão do plano.</p>
             
-            <div className="mb-6">
-              <label className="block text-xs font-bold uppercase text-gray-400 mb-2">Altura (cm)</label>
-              <input 
-                type="number" 
-                value={formData.height}
-                onChange={(e) => handleChange('height', e.target.value)}
-                className="w-full text-4xl font-black border-b-2 border-gray-100 py-2 outline-none focus:border-black transition-colors placeholder:text-gray-200"
-                placeholder="175"
-              />
+            <div className="grid grid-cols-2 gap-6 mb-6">
+                <div>
+                    <label className="block text-xs font-bold uppercase text-gray-400 mb-2">Altura (cm)</label>
+                    <input 
+                        type="number" 
+                        value={formData.height}
+                        onChange={(e) => handleChange('height', e.target.value)}
+                        className="w-full text-4xl font-black border-b-2 border-gray-100 py-2 outline-none focus:border-black transition-colors placeholder:text-gray-200"
+                        placeholder="175"
+                    />
+                </div>
+                <div>
+                    <label className="block text-xs font-bold uppercase text-gray-400 mb-2">Peso (kg)</label>
+                    <input 
+                        type="number" 
+                        value={formData.weight}
+                        onChange={(e) => handleChange('weight', e.target.value)}
+                        className="w-full text-4xl font-black border-b-2 border-gray-100 py-2 outline-none focus:border-black transition-colors placeholder:text-gray-200"
+                        placeholder="70"
+                    />
+                </div>
             </div>
 
+            {/* 👈 2. CAMPO VISUAL NOVO */}
             <div>
-              <label className="block text-xs font-bold uppercase text-gray-400 mb-2">Peso Atual (kg)</label>
+              <label className="block text-xs font-bold uppercase text-gray-400 mb-2">
+                Gordura Corporal (%) <span className="text-gray-300 font-normal normal-case">(Opcional mas Recomendado)</span>
+              </label>
               <input 
                 type="number" 
-                value={formData.weight}
-                onChange={(e) => handleChange('weight', e.target.value)}
+                value={formData.bodyFat}
+                onChange={(e) => handleChange('bodyFat', e.target.value)}
                 className="w-full text-4xl font-black border-b-2 border-gray-100 py-2 outline-none focus:border-black transition-colors placeholder:text-gray-200"
-                placeholder="70"
+                placeholder="15"
               />
+              <p className="text-[10px] text-gray-400 mt-2">
+                Isto ajuda a IA a decidir se deves fazer Bulking ou Cutting. Se não souberes, deixa em branco.
+              </p>
             </div>
           </div>
         )}
