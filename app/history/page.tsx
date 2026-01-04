@@ -4,17 +4,26 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 
-// Configuração para sabermos as unidades e nomes
+// Configuração Visual dos Nutrientes (Igual à Page Principal)
 const NUTRIENT_CONFIG: any = {
-    fiber: { label: 'Fibra', unit: 'g', color: 'teal' },
-    sugar: { label: 'Açúcar', unit: 'g', color: 'pink' },
-    sodium: { label: 'Sódio', unit: 'mg', color: 'slate' },
-    cholesterol: { label: 'Colest.', unit: 'mg', color: 'purple' },
-    potassium: { label: 'Potássio', unit: 'mg', color: 'indigo' },
-    calcium: { label: 'Cálcio', unit: 'mg', color: 'stone' },
-    iron: { label: 'Ferro', unit: 'mg', color: 'red' },
-    vitC: { label: 'Vit C', unit: 'mg', color: 'orange' },
-    vitD: { label: 'Vit D', unit: 'iu', color: 'sky' },
+    // Originais
+    fiber: { label: 'Fibra', unit: 'g' },
+    sugar: { label: 'Açúcar', unit: 'g' },
+    sodium: { label: 'Sódio', unit: 'mg' },
+    cholesterol: { label: 'Colesterol', unit: 'mg' },
+    potassium: { label: 'Potássio', unit: 'mg' },
+    calcium: { label: 'Cálcio', unit: 'mg' },
+    iron: { label: 'Ferro', unit: 'mg' },
+    vitC: { label: 'Vit C', unit: 'mg' },
+    vitD: { label: 'Vit D', unit: 'iu' },
+    
+    // Novos
+    magnesium: { label: 'Magnésio', unit: 'mg' },
+    zinc: { label: 'Zinco', unit: 'mg' }, 
+    omega3: { label: 'Ómega 3', unit: 'mg' },
+    vitB12: { label: 'Vit B12', unit: 'mcg' },
+    vitB9: { label: 'Vit B9', unit: 'mcg' },
+    selenium: { label: 'Selénio', unit: 'mcg' }
 };
 
 export default function HistoryPage() {
@@ -23,7 +32,6 @@ export default function HistoryPage() {
   
   const [viewDate, setViewDate] = useState(new Date());
   const [selectedLog, setSelectedLog] = useState<any>(null);
-
   const [history, setHistory] = useState<any[]>([]);
   const [dailyLog, setDailyLog] = useState<any>({ calories: 0, meals: [] });
   
@@ -167,35 +175,41 @@ export default function HistoryPage() {
                   </h2>
               </div>
 
-              <div className="bg-white p-6 rounded-[2rem] shadow-xl border border-gray-100">
-                  <div className="flex justify-between items-start mb-6">
-                    <div className="flex items-baseline gap-1">
-                        <h3 className="text-6xl font-black tracking-tighter">{Math.round(selectedLog.calories || 0)}</h3>
-                        <span className="font-bold text-gray-400 text-lg">kcal</span>
+              {/* CARTÃO PRINCIPAL (ESTILO DARK MODE) */}
+              <div className="bg-black text-white p-6 rounded-[2rem] shadow-xl overflow-hidden relative">
+                  <div className="flex justify-between items-start mb-6 relative z-10">
+                    <div className="flex flex-col">
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Total Ingerido</span>
+                        <div className="flex items-baseline gap-1">
+                            <h3 className="text-5xl font-black tracking-tighter">{Math.round(selectedLog.calories || 0)}</h3>
+                            <span className="font-bold text-gray-500 text-lg">kcal</span>
+                        </div>
                     </div>
                     
                     {selectedLog.calories > 0 && (
-                        <div className={`px-3 py-1 rounded-full text-xs font-bold text-white ${
+                        <div className={`px-4 py-2 rounded-full text-xs font-bold text-white ${
                             (selectedLog.metGoal !== undefined ? selectedLog.metGoal : checkSuccess(selectedLog.calories, goalCalories)) 
-                            ? "bg-emerald-500" 
-                            : "bg-red-500"
+                            ? "bg-green-500 shadow-[0_0_15px_rgba(34,197,94,0.4)]" 
+                            : "bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)]"
                         }`}>
-                            {(selectedLog.metGoal !== undefined ? selectedLog.metGoal : checkSuccess(selectedLog.calories, goalCalories)) ? "CUMPRIDO" : "FALHOU"}
+                            {(selectedLog.metGoal !== undefined ? selectedLog.metGoal : checkSuccess(selectedLog.calories, goalCalories)) ? "META ATINGIDA" : "META FALHADA"}
                         </div>
                     )}
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2">
-                      <MacroBox label="Prot" val={selectedLog.protein} />
-                      <MacroBox label="Carb" val={selectedLog.carbs} />
-                      <MacroBox label="Gord" val={selectedLog.fat} />
+                  {/* GRID DE MACROS COM BARRAS */}
+                  <div className="grid grid-cols-3 gap-3 relative z-10">
+                      <MacroBar label="Prot" val={selectedLog.protein} goal={userGoals.protein} />
+                      <MacroBar label="Carb" val={selectedLog.carbs} goal={userGoals.carbs} />
+                      <MacroBar label="Gord" val={selectedLog.fat} goal={userGoals.fat} />
 
                       {activeExtras.map(key => (
-                          <MacroBox 
+                          <MacroBar 
                             key={key}
                             label={NUTRIENT_CONFIG[key].label} 
                             val={selectedLog[key]} 
                             unit={NUTRIENT_CONFIG[key].unit}
+                            goal={userGoals[key]}
                           />
                       ))}
                   </div>
@@ -209,50 +223,23 @@ export default function HistoryPage() {
                           <div key={idx} className="bg-white p-5 rounded-[2rem] flex justify-between items-stretch shadow-sm border border-gray-100/80 relative overflow-hidden group transition-all hover:shadow-md">
                               
                               <div className="flex-1 pr-4 flex flex-col justify-center">
-                                  {/* Nome e Hora */}
                                   <div className="flex items-baseline gap-2 mb-3">
                                       <p className="font-black text-lg text-gray-900 leading-tight">{meal.name || "Refeição"}</p>
                                       {meal.time && <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{meal.time}</span>}
                                   </div>
                                   
                                   <div className="flex flex-wrap gap-2">
-                                    {/* 3 PRINCIPAIS */}
-                                    <span className="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-blue-50 text-blue-600 flex items-center gap-1.5 leading-none">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div> PROT {Math.round(meal.protein)}g
-                                    </span>
-                                    <span className="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-green-50 text-green-600 flex items-center gap-1.5 leading-none">
-                                       <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div> CARB {Math.round(meal.carbs)}g
-                                    </span>
-                                    <span className="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-orange-50 text-orange-600 flex items-center gap-1.5 leading-none">
-                                       <div className="w-1.5 h-1.5 rounded-full bg-orange-500"></div> GORD {Math.round(meal.fat)}g
-                                    </span>
+                                    {Math.round(meal.protein) > 0 && <MacroTag label="PROT" val={meal.protein} color="blue" />}
+                                    {Math.round(meal.carbs) > 0 && <MacroTag label="CARB" val={meal.carbs} color="green" />}
+                                    {Math.round(meal.fat) > 0 && <MacroTag label="GORD" val={meal.fat} color="orange" />}
 
-                                    {/* 👇 CORRIGIDO: Agora usa 'activeExtras' para filtrar a lista 👇 */}
-                                    {activeExtras.map(key => {
+                                    {/* Mostra extras que tenham valor > 0 */}
+                                    {Object.keys(NUTRIENT_CONFIG).map(key => {
+                                        if (['protein','carbs','fat'].includes(key)) return null;
                                         const val = meal[key];
-                                        // Se a refeição não tiver valor para este nutriente, não mostra
                                         if (!val || val === 0) return null;
                                         
-                                        const color = NUTRIENT_CONFIG[key].color;
-                                        // Mapa de cores
-                                        let bg = "bg-gray-50"; let text = "text-gray-600"; let dot = "bg-gray-500";
-                                        
-                                        if(color === 'pink') { bg = "bg-pink-50"; text = "text-pink-600"; dot = "bg-pink-500"; }
-                                        if(color === 'teal') { bg = "bg-teal-50"; text = "text-teal-600"; dot = "bg-teal-500"; }
-                                        if(color === 'slate') { bg = "bg-slate-100"; text = "text-slate-600"; dot = "bg-slate-500"; }
-                                        if(color === 'purple') { bg = "bg-purple-50"; text = "text-purple-600"; dot = "bg-purple-500"; }
-                                        if(color === 'indigo') { bg = "bg-indigo-50"; text = "text-indigo-600"; dot = "bg-indigo-500"; }
-                                        if(color === 'stone') { bg = "bg-stone-100"; text = "text-stone-600"; dot = "bg-stone-500"; }
-                                        if(color === 'red') { bg = "bg-red-50"; text = "text-red-600"; dot = "bg-red-500"; }
-                                        if(color === 'orange') { bg = "bg-orange-50"; text = "text-orange-600"; dot = "bg-orange-500"; }
-                                        if(color === 'sky') { bg = "bg-sky-50"; text = "text-sky-600"; dot = "bg-sky-500"; }
-
-                                        return (
-                                            <span key={key} className={`text-[10px] font-bold px-2.5 py-1 rounded-lg flex items-center gap-1.5 leading-none ${bg} ${text}`}>
-                                                <div className={`w-1.5 h-1.5 rounded-full ${dot}`}></div>
-                                                {NUTRIENT_CONFIG[key].label.toUpperCase()} {Math.round(val)}{NUTRIENT_CONFIG[key].unit}
-                                            </span>
-                                        )
+                                        return <MacroTag key={key} label={NUTRIENT_CONFIG[key].label} val={val} unit={NUTRIENT_CONFIG[key].unit} color="gray" />
                                     })}
                                   </div>
                               </div>
@@ -267,7 +254,7 @@ export default function HistoryPage() {
               ) : (
                   <div className="text-center py-12 mx-2 bg-white/50 rounded-[2rem] border-2 border-dashed border-gray-200">
                         <p className="text-4xl mb-3 grayscale opacity-30">🥣</p>
-                        <p className="text-gray-400 text-sm font-bold">Nada registado.</p>
+                        <p className="text-gray-400 text-sm font-bold">Nada registado neste dia.</p>
                   </div>
               )}
           </div>
@@ -276,11 +263,65 @@ export default function HistoryPage() {
   );
 }
 
-function MacroBox({ label, val, unit = "g" }: any) {
+// 👇 COMPONENTE NOVO: BARRA DE PROGRESSO ELEGANTE (DARK MODE)
+function MacroBar({ label, val = 0, goal = 0, unit = "g" }: any) {
+    const safeGoal = goal || 1;
+    const pct = Math.min(100, (val / safeGoal) * 100);
+    const isMet = val >= safeGoal;
+
     return (
-        <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 flex flex-col items-center justify-center">
-            <p className="text-[9px] uppercase font-bold text-gray-400 mb-1 tracking-wider">{label}</p>
-            <p className="font-black text-lg">{Math.round(val || 0)}<span className="text-xs ml-0.5 font-bold text-gray-400">{unit}</span></p>
+        <div className="relative overflow-hidden bg-white/5 border border-white/10 p-3 rounded-2xl flex flex-col justify-between h-20 group hover:bg-white/10 transition-colors">
+            {/* Label e Check */}
+            <div className="flex justify-between items-start">
+                <p className={`text-[9px] font-bold uppercase tracking-wider ${isMet ? 'text-green-400' : 'text-gray-400'}`}>
+                    {label}
+                </p>
+                {isMet && <span className="text-green-400 text-[10px] animate-pulse">✓</span>}
+            </div>
+
+            {/* Valores */}
+            <div className="z-10 mt-1">
+                <p className={`text-lg font-black leading-none ${isMet ? 'text-green-400' : 'text-white'}`}>
+                    {Math.round(val)}<span className="text-[9px] opacity-60 ml-0.5">{unit}</span>
+                </p>
+                <p className="text-[8px] text-gray-500 font-bold mt-0.5">
+                    /{goal}{unit}
+                </p>
+            </div>
+
+            {/* Barra Fundo */}
+            <div className="absolute bottom-0 left-0 w-full h-1 bg-gray-800/50">
+                {/* Barra Fill */}
+                <div 
+                    className={`h-full transition-all duration-700 ease-out ${isMet ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]' : 'bg-blue-500'}`}
+                    style={{ width: `${pct}%` }}
+                />
+            </div>
         </div>
+    )
+}
+
+// 👇 COMPONENTE PARA AS REFEIÇÕES (TAGS SIMPLES)
+function MacroTag({ label, val, unit="g", color }: any) {
+    const colors: any = {
+        blue: "bg-blue-50 text-blue-600",
+        green: "bg-green-50 text-green-600",
+        orange: "bg-orange-50 text-orange-600",
+        gray: "bg-gray-100 text-gray-600"
+    };
+    
+    // Cores específicas para os novos nutrientes (opcional)
+    const dotColors: any = {
+        blue: "bg-blue-500",
+        green: "bg-green-500",
+        orange: "bg-orange-500",
+        gray: "bg-gray-400"
+    };
+
+    return (
+        <span className={`text-[10px] font-bold px-2 py-1 rounded-md flex items-center gap-1 leading-none ${colors[color] || colors.gray}`}>
+            <div className={`w-1.5 h-1.5 rounded-full ${dotColors[color] || dotColors.gray}`}></div>
+            {label.toUpperCase().slice(0, 4)} {Math.round(val)}{unit}
+        </span>
     )
 }

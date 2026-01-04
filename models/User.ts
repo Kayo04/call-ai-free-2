@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-// Esquema da Refeição Individual
+// Esquema da Refeição Individual (Já estava bem, mas confirmamos)
 const MealSchema = new mongoose.Schema({
   name: String,
   calories: Number,
@@ -8,7 +8,37 @@ const MealSchema = new mongoose.Schema({
   carbs: Number,
   fat: Number,
   
-  // Nutrientes Extra
+  // Nutrientes Clássicos
+  fiber: Number,
+  sugar: Number,
+  sodium: Number,
+  cholesterol: Number,
+  potassium: Number,
+  calcium: Number,
+  iron: Number,
+  vitC: Number,
+  vitD: Number,
+
+  // Novos Nutrientes
+  magnesium: Number,
+  zinc: Number,
+  omega3: Number,
+  vitB12: Number,
+  vitB9: Number,
+  selenium: Number,
+  
+  time: String 
+});
+
+// 👇 AQUI ESTAVA O PROBLEMA: FALTAVAM CAMPOS NO 'DayLogSchema'
+const DayLogSchema = new mongoose.Schema({
+  date: Date,
+  calories: Number,
+  protein: Number,
+  carbs: Number,
+  fat: Number,
+  
+  // Totais do dia (Adicionei todos os que faltavam!)
   fiber: Number,
   sugar: Number,
   sodium: Number,
@@ -19,22 +49,13 @@ const MealSchema = new mongoose.Schema({
   vitC: Number,
   vitD: Number,
   
-  // Hora
-  time: String 
-});
-
-// Esquema do Dia Completo
-const DayLogSchema = new mongoose.Schema({
-  date: Date,
-  calories: Number,
-  protein: Number,
-  carbs: Number,
-  fat: Number,
-  
-  // Totais do dia
-  fiber: Number,
-  sugar: Number,
-  sodium: Number,
+  // Novos Totais
+  magnesium: Number,
+  zinc: Number,
+  omega3: Number,
+  vitB12: Number,
+  vitB9: Number,
+  selenium: Number,
   
   meals: [MealSchema], 
   metGoal: Boolean
@@ -46,7 +67,6 @@ const UserSchema = new mongoose.Schema({
   image: String,
   password: { type: String, select: false },
 
-  // 👇 NOVO: Informações do Perfil (Essencial para o novo Onboarding)
   info: {
     age: Number,
     weight: Number,
@@ -56,7 +76,7 @@ const UserSchema = new mongoose.Schema({
     goal: String,
     targetWeight: Number,
     targetDate: Date,
-    bodyFat: Number // 👈 AQUI ESTÁ A CHAVE PARA A LÓGICA "GREEK GOD"
+    bodyFat: Number
   },
   
   // Metas do utilizador
@@ -74,6 +94,13 @@ const UserSchema = new mongoose.Schema({
     iron: Number,
     vitC: Number,
     vitD: Number,
+    // Novos
+    magnesium: Number,
+    zinc: Number,
+    omega3: Number,
+    vitB12: Number,
+    vitB9: Number,
+    selenium: Number
   },
   
   dailyLog: DayLogSchema,

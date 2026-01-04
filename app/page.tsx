@@ -6,17 +6,26 @@ import { signOut, useSession } from "next-auth/react";
 import { useRouter } from 'next/navigation';
 import { analisarImagemAction } from '@/app/action';
 
-// Configuração dos Nutrientes
+// 👇 CONFIGURAÇÃO FINAL COM OS NOVOS ÍCONES
 const NUTRIENT_CONFIG: any = {
-    fiber: { label: 'Fibra', unit: 'g', daily: 30 },
-    sugar: { label: 'Açúcar', unit: 'g', daily: 50 },
-    sodium: { label: 'Sódio', unit: 'mg', daily: 2300 },
-    cholesterol: { label: 'Colesterol', unit: 'mg', daily: 300 },
-    potassium: { label: 'Potássio', unit: 'mg', daily: 3500 },
-    calcium: { label: 'Cálcio', unit: 'mg', daily: 1000 },
-    iron: { label: 'Ferro', unit: 'mg', daily: 14 },
-    vitC: { label: 'Vitamina C', unit: 'mg', daily: 90 },
-    vitD: { label: 'Vitamina D', unit: 'iu', daily: 600 },
+    // Originais
+    fiber: { label: 'Fibra', unit: 'g', daily: 30, icon: '🌾' },
+    sugar: { label: 'Açúcar', unit: 'g', daily: 50, icon: '🍭' },
+    sodium: { label: 'Sódio', unit: 'mg', daily: 2300, icon: '🧂' },
+    cholesterol: { label: 'Colesterol', unit: 'mg', daily: 300, icon: '🥚' },
+    potassium: { label: 'Potássio', unit: 'mg', daily: 3500, icon: '🍌' },
+    calcium: { label: 'Cálcio', unit: 'mg', daily: 1000, icon: '🥛' },
+    iron: { label: 'Ferro', unit: 'mg', daily: 14, icon: '🥩' },
+    vitC: { label: 'Vitamina C', unit: 'mg', daily: 90, icon: '🍊' },
+    vitD: { label: 'Vitamina D', unit: 'iu', daily: 600, icon: '☀️' },
+
+    // Novos
+    magnesium: { label: 'Magnésio', unit: 'mg', daily: 400, icon: '🥑' },
+    zinc: { label: 'Zinco', unit: 'mg', daily: 11, icon: '🛡️' },
+    omega3: { label: 'Ómega 3', unit: 'mg', daily: 1000, icon: '🐟' },
+    vitB12: { label: 'Vit B12', unit: 'mcg', daily: 2.4, icon: '⚡' },
+    vitB9: { label: 'Vit B9', unit: 'mcg', daily: 400, icon: '🥬' },
+    selenium: { label: 'Selénio', unit: 'mcg', daily: 55, icon: '🌰' },
 };
 
 export default function Home() {
@@ -68,7 +77,6 @@ export default function Home() {
     }
   }, [session, status, router]);
 
-  // Carregar os elementos da câmara
   useEffect(() => {
     import('@ionic/pwa-elements/loader').then(loader => { loader.defineCustomElements(window); });
   }, []);
@@ -95,16 +103,18 @@ export default function Home() {
     if (!dados) return;
     setAddStatus('loading');
     try {
-      // Captura a hora atual (ex: "14:30")
       const horaAtual = new Date().toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
 
       const payload: any = {
           name: dados.nome, 
           calories: dados.calorias, protein: dados.proteina, carbs: dados.hidratos, fat: dados.gordura,
+          
           fiber: dados.fibra, sugar: dados.acucar, sodium: dados.sodio, cholesterol: dados.colesterol,
           potassium: dados.potassio, calcium: dados.calcio, iron: dados.ferro, vitC: dados.vitaminaC, vitD: dados.vitaminaD,
           
-          // 👇 AQUI VAI A HORA
+          magnesium: dados.magnesio, zinc: dados.zinco, omega3: dados.omega3,
+          vitB12: dados.vitaminaB12, vitB9: dados.vitaminaB9, selenium: dados.selenio,
+
           time: horaAtual 
       };
       
@@ -164,7 +174,6 @@ export default function Home() {
   const currentCalories = dailyLog.calories || 0;
   const goalCalories = goals.calories || 2000;
   
-  // Cálculo inteligente para o Cartão Principal
   const caloriesRemaining = goalCalories - currentCalories;
   const isCaloriesMet = caloriesRemaining <= 0;
 
@@ -213,7 +222,7 @@ export default function Home() {
                 <h3 className="font-bold text-gray-400 text-xs uppercase mb-2">Adicionar Meta</h3>
                 <input 
                     type="text" 
-                    placeholder="Procurar (ex: Sódio, Açúcar...)" 
+                    placeholder="Procurar (ex: Magnésio, Zinco...)" 
                     value={searchTerm}
                     onChange={e => setSearchTerm(e.target.value)}
                     className="w-full p-3 bg-gray-100 rounded-xl mb-3 text-sm outline-none focus:ring-2 ring-black/10"
@@ -244,6 +253,7 @@ export default function Home() {
         </div>
       )}
 
+      {/* HEADER */}
       <header className="fixed top-0 w-full bg-white/85 backdrop-blur-xl z-20 px-6 py-4 border-b border-gray-200/50 flex justify-between items-center">
         <div className="flex items-center gap-2">
             <div className="w-10 h-10 rounded-xl overflow-hidden shadow-sm border border-gray-100">
@@ -280,12 +290,10 @@ export default function Home() {
             
             <div className="flex justify-between items-start mb-2 relative z-10">
                 <div>
-                    {/* Se acabou as calorias, muda o texto */}
                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
                         {isCaloriesMet ? "OBJETIVO SUPERADO" : "RESTAM HOJE"}
                     </p>
                     <h2 className="text-5xl font-black tracking-tighter">
-                        {/* Se acabou, mostra o TOTAL consumido. Se falta, mostra quanto falta. */}
                         {isCaloriesMet ? currentCalories : caloriesRemaining} 
                         <span className="text-xl text-gray-500 font-bold">kcal</span>
                     </h2>
@@ -330,6 +338,7 @@ export default function Home() {
           </div>
         )}
 
+        {/* ÁREA DA CÂMARA */}
         <div className="relative w-full aspect-square bg-white rounded-[2.5rem] shadow-sm overflow-hidden border border-white mb-6">
           {imagem ? (<img src={imagem} className="w-full h-full object-cover" />) : (
             <div className="w-full h-full flex flex-col items-center justify-center bg-gray-50 text-gray-300">
@@ -358,6 +367,7 @@ export default function Home() {
               <MacroCard icon="🌾" label="Carbs" val={dados.hidratos} unit="g" />
               <MacroCard icon="🥑" label="Gordura" val={dados.gordura} unit="g" />
               
+              {/* 👇 AQUI USAMOS O ÍCONE CONFIGURADO EM VEZ DO TUBO */}
               {activeKeys.map(key => {
                   let aiValue = 0;
                   if (key === 'fiber') aiValue = dados.fibra;
@@ -369,11 +379,20 @@ export default function Home() {
                   if (key === 'iron') aiValue = dados.ferro;
                   if (key === 'vitC') aiValue = dados.vitaminaC;
                   if (key === 'vitD') aiValue = dados.vitaminaD;
+                  
+                  if (key === 'magnesium') aiValue = dados.magnesio;
+                  if (key === 'zinc') aiValue = dados.zinco;
+                  if (key === 'omega3') aiValue = dados.omega3;
+                  if (key === 'vitB12') aiValue = dados.vitaminaB12;
+                  if (key === 'vitB9') aiValue = dados.vitaminaB9;
+                  if (key === 'selenium') aiValue = dados.selenio;
+
+                  if (!aiValue || aiValue === 0) return null;
 
                   return (
                       <MacroCard 
                         key={key} 
-                        icon="🧪" 
+                        icon={NUTRIENT_CONFIG[key].icon} 
                         label={NUTRIENT_CONFIG[key].label} 
                         val={aiValue || 0} 
                         unit={NUTRIENT_CONFIG[key].unit} 
@@ -408,19 +427,41 @@ export default function Home() {
   );
 }
 
-// COMPONENTE INTELIGENTE: MOSTRA "CONCLUÍDO" OU O QUE FALTA
+// 👇 NOVA VERSÃO ELEGANTE (DARK MODE TRANSPARENTE)
 function MiniMacro({ label, current = 0, goal = 0, unit = "g" }: any) {
-    const remaining = Math.max(0, goal - current);
-    const isMet = current >= goal;
+    const safeGoal = goal || 1; 
+    const pct = Math.min(100, (current / safeGoal) * 100);
+    const isMet = current >= safeGoal;
 
     return (
-        <div className={`p-3 rounded-2xl border transition-all ${isMet ? 'bg-green-500 border-green-400' : 'bg-white/10 border-white/5'}`}>
-            <p className={`text-[9px] font-bold uppercase mb-0.5 ${isMet ? 'text-white/80' : 'text-gray-400'}`}>
-                {isMet ? "CONCLUÍDO" : label}
-            </p>
-            <p className={`text-sm font-bold ${isMet ? 'text-white' : 'text-white'}`}>
-                {isMet ? `${Math.round(current)}${unit}` : `${Math.round(remaining)}${unit}`}
-            </p>
+        <div className="relative overflow-hidden bg-white/5 border border-white/10 p-3 rounded-2xl flex flex-col justify-between h-24 group hover:bg-white/10 transition-colors">
+            {/* Label e Ícone de Sucesso */}
+            <div className="flex justify-between items-start">
+                <p className={`text-[10px] font-bold uppercase tracking-wider ${isMet ? 'text-green-400' : 'text-gray-400'}`}>
+                    {label}
+                </p>
+                {isMet && <span className="text-green-400 text-xs animate-pulse">✓</span>}
+            </div>
+
+            {/* Valores */}
+            <div className="z-10 mt-1">
+                <p className={`text-xl font-black leading-none ${isMet ? 'text-green-400' : 'text-white'}`}>
+                    {Math.round(current)}
+                    <span className="text-[10px] text-gray-500 font-bold ml-0.5">{unit}</span>
+                </p>
+                <p className="text-[9px] text-gray-500 font-medium mt-1">
+                    Meta: {goal}{unit}
+                </p>
+            </div>
+
+            {/* Barra de Progresso (Fundo) */}
+            <div className="absolute bottom-0 left-0 w-full h-1.5 bg-gray-800/50">
+                {/* Barra de Progresso (Preenchimento) */}
+                <div 
+                    className={`h-full transition-all duration-700 ease-out ${isMet ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]' : 'bg-blue-500'}`}
+                    style={{ width: `${pct}%` }}
+                />
+            </div>
         </div>
     )
 }
