@@ -25,6 +25,11 @@ const NUTRIENT_CONFIG: any = {
     selenium: { label: 'Selénio', unit: 'mcg', daily: 55, icon: '🌰' },
 };
 
+const formatVal = (val: number) => {
+    if (!val) return 0;
+    return val % 1 === 0 ? val : parseFloat(val.toFixed(1));
+};
+
 export default function Home() {
   const { data: session, status, update } = useSession();
   const router = useRouter();
@@ -35,13 +40,11 @@ export default function Home() {
   const [showSettings, setShowSettings] = useState(false);
   const [addStatus, setAddStatus] = useState<'idle' | 'loading' | 'success'>('idle');
   
-  // ESTADOS LOCAIS
   const [tempGoals, setTempGoals] = useState<any>({});
   const [dailyLog, setDailyLog] = useState<any>({ calories: 0, protein: 0, carbs: 0, fat: 0 });
   const [searchTerm, setSearchTerm] = useState("");
   const hasChecked = useRef(false);
 
-  // CARREGAR DADOS
   useEffect(() => {
       if (status === 'authenticated' && session?.user) {
           // @ts-ignore
@@ -98,18 +101,7 @@ export default function Home() {
     setAddStatus('loading');
     try {
       const horaAtual = new Date().toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
-      const payload: any = {
-          name: dados.nome, 
-          calories: dados.calorias, protein: dados.proteina, carbs: dados.hidratos, fat: dados.gordura,
-          
-          // Envia TODOS os nutrientes para o backend somar
-          fiber: dados.fibra, sugar: dados.acucar, sodium: dados.sodio, cholesterol: dados.colesterol,
-          potassium: dados.potassio, calcium: dados.calcio, iron: dados.ferro, vitC: dados.vitaminaC, vitD: dados.vitaminaD,
-          magnesium: dados.magnesio, zinc: dados.zinco, omega3: dados.omega3,
-          vitB12: dados.vitaminaB12, vitB9: dados.vitaminaB9, selenium: dados.selenio,
-          
-          time: horaAtual 
-      };
+      const payload: any = { ...dados, time: horaAtual };
       
       const res = await fetch('/api/user/add-meal', { method: 'POST', body: JSON.stringify(payload) });
       const json = await res.json();
@@ -164,12 +156,11 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-black text-white font-sans pb-32 relative overflow-hidden">
       
-      {/* SETTINGS DRAWER (FIXO EM DARK MODE) */}
+      {/* SETTINGS DRAWER */}
       {showSettings && (
         <div className="fixed inset-0 z-50 flex justify-end">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowSettings(false)}></div>
           <div className="relative w-[85%] max-w-sm h-full bg-zinc-900 shadow-2xl p-6 flex flex-col animate-slide-left overflow-y-auto border-l border-zinc-800">
-            
             <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-black text-white">Definições</h2>
                 <button onClick={() => setShowSettings(false)} className="w-8 h-8 bg-zinc-800 rounded-full font-bold text-gray-300">✕</button>
@@ -177,10 +168,7 @@ export default function Home() {
             
             <div className="mb-8">
                 <h3 className="font-bold text-gray-400 text-xs uppercase mb-4">Nutrientes & Metas</h3>
-                
                 <div className="space-y-3 mb-6">
-                    {activeKeys.length === 0 && <p className="text-sm text-gray-400 italic">Nenhuma meta extra.</p>}
-                    
                     {activeKeys.map(key => (
                         <div key={key} className="bg-zinc-800 p-3 rounded-xl border border-zinc-700 flex items-center justify-between">
                             <div>
@@ -200,33 +188,17 @@ export default function Home() {
                         </div>
                     ))}
                 </div>
-
                 <h3 className="font-bold text-gray-400 text-xs uppercase mb-2">Adicionar Meta</h3>
-                <input 
-                    type="text" 
-                    placeholder="Procurar (ex: Magnésio...)" 
-                    value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
-                    className="w-full p-3 bg-zinc-800 text-white rounded-xl mb-3 text-sm outline-none focus:ring-2 ring-white/10"
-                />
-                
+                <input type="text" placeholder="Procurar..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full p-3 bg-zinc-800 text-white rounded-xl mb-3 text-sm outline-none focus:ring-2 ring-white/10" />
                 <div className="space-y-2 max-h-40 overflow-y-auto">
                     {availableToAdd.map(key => (
-                        <button 
-                            key={key} 
-                            onClick={() => addNutrient(key)}
-                            className="w-full flex items-center justify-between p-3 rounded-xl border border-zinc-700 hover:bg-zinc-800 transition-colors text-left"
-                        >
+                        <button key={key} onClick={() => addNutrient(key)} className="w-full flex items-center justify-between p-3 rounded-xl border border-zinc-700 hover:bg-zinc-800 transition-colors text-left">
                             <span className="font-bold text-sm text-gray-200">{NUTRIENT_CONFIG[key].label}</span>
                             <span className="text-xs bg-white text-black px-2 py-1 rounded-md font-bold">+ Adicionar</span>
                         </button>
                     ))}
-                    {availableToAdd.length === 0 && searchTerm !== "" && (
-                        <p className="text-sm text-gray-400 text-center py-2">Não encontrado.</p>
-                    )}
                 </div>
             </div>
-
             <div className="mt-auto space-y-3">
               <button onClick={() => router.push('/onboarding')} className="w-full p-4 bg-zinc-800 font-bold rounded-xl text-left text-white">✏️ Recalcular Macros</button>
               <button onClick={() => signOut()} className="w-full p-4 bg-red-900/20 text-red-500 font-bold rounded-xl flex items-center justify-center gap-2"><LogOutIcon className="w-5 h-5"/> Sair</button>
@@ -249,11 +221,8 @@ export default function Home() {
       </header>
 
       <main className="pt-24 px-6 flex flex-col items-center w-full max-w-md mx-auto">
-        
         <div className="w-full mb-4">
-            <h1 className="text-3xl font-black text-white tracking-tight">
-                Olá, <span className="text-gray-500">{firstName}</span> 👋
-            </h1>
+            <h1 className="text-3xl font-black text-white tracking-tight">Olá, <span className="text-gray-500">{firstName}</span> 👋</h1>
         </div>
 
         <button onClick={() => router.push('/history')} className="w-full mb-6 bg-zinc-900 p-4 rounded-[1.5rem] shadow-sm flex items-center justify-between group active:scale-95 transition-transform border border-zinc-800">
@@ -269,60 +238,37 @@ export default function Home() {
 
         {goalCalories > 0 && (
           <div className="w-full bg-zinc-900 text-white p-6 rounded-[2rem] shadow-xl shadow-black/50 mb-8 relative overflow-hidden border border-zinc-800">
-            
             <div className="flex justify-between items-start mb-2 relative z-10">
                 <div>
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
-                        {isCaloriesMet ? "OBJETIVO SUPERADO" : "RESTAM HOJE"}
-                    </p>
-                    <h2 className="text-5xl font-black tracking-tighter">
-                        {isCaloriesMet ? currentCalories : caloriesRemaining} 
-                        <span className="text-xl text-gray-500 font-bold">kcal</span>
-                    </h2>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{isCaloriesMet ? "OBJETIVO SUPERADO" : "RESTAM HOJE"}</p>
+                    <h2 className="text-5xl font-black tracking-tighter">{isCaloriesMet ? currentCalories : caloriesRemaining} <span className="text-xl text-gray-500 font-bold">kcal</span></h2>
                 </div>
-                <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center text-2xl animate-pulse">
-                    {isCaloriesMet ? "🎉" : "🔥"}
-                </div>
+                <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center text-2xl animate-pulse">{isCaloriesMet ? "🎉" : "🔥"}</div>
             </div>
-
             <div className="w-full h-3 bg-gray-800 rounded-full mb-2 relative z-10 overflow-hidden">
-                <div 
-                    className="h-full bg-green-500 transition-all duration-700 ease-out" 
-                    style={{ width: `${progressPct}%` }}
-                ></div>
+                <div className="h-full bg-green-500 transition-all duration-700 ease-out" style={{ width: `${progressPct}%` }}></div>
             </div>
-            
             <div className="flex justify-between text-xs font-bold text-gray-400 mb-6 relative z-10">
                 <span>{currentCalories} ingeridas</span>
                 <span>Meta: {goalCalories}</span>
             </div>
-            
             <div className="grid grid-cols-3 gap-3 mb-2 relative z-10">
                 <MiniMacro label="Prot" current={dailyLog.protein} goal={goals.protein} />
                 <MiniMacro label="Carb" current={dailyLog.carbs} goal={goals.carbs} />
                 <MiniMacro label="Gord" current={dailyLog.fat} goal={goals.fat} />
             </div>
-
             {activeKeys.length > 0 && (
                 <div className="mt-4 pt-4 border-t border-white/10 grid grid-cols-3 gap-2 relative z-10">
                     {activeKeys.map(key => (
-                        <MiniMacro 
-                            key={key} 
-                            label={NUTRIENT_CONFIG[key].label} 
-                            current={dailyLog[key]} 
-                            goal={goals[key]} 
-                            unit={NUTRIENT_CONFIG[key].unit} 
-                        />
+                        <MiniMacro key={key} label={NUTRIENT_CONFIG[key].label} current={dailyLog[key]} goal={goals[key]} unit={NUTRIENT_CONFIG[key].unit} />
                     ))}
                 </div>
             )}
           </div>
         )}
 
-        {/* ÁREA DA CÂMARA (CORRIGIDA) */}
         <div className="relative w-full aspect-square bg-zinc-900 rounded-[2.5rem] shadow-sm overflow-hidden border border-zinc-800 mb-6">
           {imagem ? (
-            // 👇 CORREÇÃO: object-contain para não cortar
             <img src={imagem} className="w-full h-full object-contain" />
             ) : (
             <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-800 text-zinc-600">
@@ -346,10 +292,11 @@ export default function Home() {
             </div>
             
             <div className="grid grid-cols-2 gap-3 mb-4">
-              <MacroCard icon="🔥" label="Calorias" val={dados.calorias} unit="kcal" />
-              <MacroCard icon="🥩" label="Proteína" val={dados.proteina} unit="g" />
-              <MacroCard icon="🌾" label="Carbs" val={dados.hidratos} unit="g" />
-              <MacroCard icon="🥑" label="Gordura" val={dados.gordura} unit="g" />
+              {/* 👇 MUDANÇA: SÓ MOSTRA SE O VALOR FOR > 0 */}
+              {dados.calorias > 0 && <MacroCard icon="🔥" label="Calorias" val={dados.calorias} unit="kcal" />}
+              {dados.proteina > 0 && <MacroCard icon="🥩" label="Proteína" val={dados.proteina} unit="g" />}
+              {dados.hidratos > 0 && <MacroCard icon="🌾" label="Carbs" val={dados.hidratos} unit="g" />}
+              {dados.gordura > 0 && <MacroCard icon="🥑" label="Gordura" val={dados.gordura} unit="g" />}
               
               {activeKeys.map(key => {
                   let aiValue = 0;
@@ -390,7 +337,7 @@ export default function Home() {
                   addStatus === 'success' ? 'bg-green-500 text-white scale-105' : 'bg-white text-black hover:bg-gray-200'
               }`}
             >
-              {addStatus === 'idle' && <><span>Adicionar</span> <span className="text-xl font-light">|</span> <span className="text-xl">+{dados.calorias} kcal</span></>}
+              {addStatus === 'idle' && <><span>Adicionar</span> <span className="text-xl font-light">|</span> <span className="text-xl">{dados.calorias > 0 ? `+${dados.calorias} kcal` : 'Confirmar'}</span></>}
               {addStatus === 'loading' && <div className="w-6 h-6 border-2 border-black/30 border-t-black rounded-full animate-spin" />}
               {addStatus === 'success' && <><span>Registado!</span> <span className="text-2xl">✅</span></>}
             </button>
@@ -409,7 +356,6 @@ export default function Home() {
   );
 }
 
-// COMPONENTES AUXILIARES (SEMPRE EM DARK MODE)
 function MiniMacro({ label, current = 0, goal = 0, unit = "g" }: any) {
     const safeGoal = goal || 1; 
     const pct = Math.min(100, (current / safeGoal) * 100);
@@ -425,7 +371,7 @@ function MiniMacro({ label, current = 0, goal = 0, unit = "g" }: any) {
             </div>
             <div className="z-10 mt-1">
                 <p className={`text-xl font-black leading-none ${isMet ? 'text-green-400' : 'text-white'}`}>
-                    {Math.round(current)}
+                    {formatVal(current)}
                     <span className="text-[10px] text-gray-500 font-bold ml-0.5">{unit}</span>
                 </p>
                 <p className="text-[9px] text-gray-500 font-medium mt-1">
@@ -433,10 +379,7 @@ function MiniMacro({ label, current = 0, goal = 0, unit = "g" }: any) {
                 </p>
             </div>
             <div className="absolute bottom-0 left-0 w-full h-1.5 bg-gray-800/50">
-                <div 
-                    className={`h-full transition-all duration-700 ease-out ${isMet ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]' : 'bg-blue-500'}`}
-                    style={{ width: `${pct}%` }}
-                />
+                <div className={`h-full transition-all duration-700 ease-out ${isMet ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]' : 'bg-blue-500'}`} style={{ width: `${pct}%` }} />
             </div>
         </div>
     )
@@ -449,7 +392,7 @@ function MacroCard({ icon, label, val, unit }: any) {
                 <span className="text-xl">{icon}</span>
                 <p className="text-[10px] text-gray-400 font-bold uppercase">{label}</p>
             </div>
-            <p className="text-2xl font-black tracking-tight text-white">{Math.round(val)}{unit}</p>
+            <p className="text-2xl font-black tracking-tight text-white">{formatVal(val)}{unit}</p>
         </div>
     )
 }
