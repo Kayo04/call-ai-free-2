@@ -6,9 +6,8 @@ import { signOut, useSession } from "next-auth/react";
 import { useRouter } from 'next/navigation';
 import { analisarImagemAction } from '@/app/action';
 
-// 👇 CONFIGURAÇÃO FINAL COM OS NOVOS ÍCONES
+// Configuração Visual dos Nutrientes
 const NUTRIENT_CONFIG: any = {
-    // Originais
     fiber: { label: 'Fibra', unit: 'g', daily: 30, icon: '🌾' },
     sugar: { label: 'Açúcar', unit: 'g', daily: 50, icon: '🍭' },
     sodium: { label: 'Sódio', unit: 'mg', daily: 2300, icon: '🧂' },
@@ -18,8 +17,6 @@ const NUTRIENT_CONFIG: any = {
     iron: { label: 'Ferro', unit: 'mg', daily: 14, icon: '🥩' },
     vitC: { label: 'Vitamina C', unit: 'mg', daily: 90, icon: '🍊' },
     vitD: { label: 'Vitamina D', unit: 'iu', daily: 600, icon: '☀️' },
-
-    // Novos
     magnesium: { label: 'Magnésio', unit: 'mg', daily: 400, icon: '🥑' },
     zinc: { label: 'Zinco', unit: 'mg', daily: 11, icon: '🛡️' },
     omega3: { label: 'Ómega 3', unit: 'mg', daily: 1000, icon: '🐟' },
@@ -42,9 +39,24 @@ export default function Home() {
   const [tempGoals, setTempGoals] = useState<any>({});
   const [dailyLog, setDailyLog] = useState<any>({ calories: 0, protein: 0, carbs: 0, fat: 0 });
   const [searchTerm, setSearchTerm] = useState("");
-
-  // Travão para o loop infinito
   const hasChecked = useRef(false);
+
+  // CARREGAR DADOS
+  useEffect(() => {
+      if (status === 'authenticated' && session?.user) {
+          // @ts-ignore
+          if (session.user.onboardingCompleted === false) router.push('/onboarding');
+          // @ts-ignore
+          if (session.user.goals) setTempGoals(session.user.goals);
+          // @ts-ignore
+          if (session.user.dailyLog) setDailyLog(session.user.dailyLog);
+
+          if (!hasChecked.current) {
+              checkDayAndSync();
+              hasChecked.current = true;
+          }
+      }
+  }, [session, status, router]);
 
   const checkDayAndSync = async () => {
       try {
@@ -56,26 +68,8 @@ export default function Home() {
                   await update({ dailyLog: json.dailyLog }); 
               }
           }
-      } catch (e) {
-          console.error("Erro a sincronizar dia", e);
-      }
+      } catch (e) { console.error(e); }
   };
-
-  useEffect(() => {
-    if (status === 'authenticated' && session?.user) {
-      // @ts-ignore
-      if (session.user.onboardingCompleted === false) router.push('/onboarding');
-      // @ts-ignore
-      if (session.user.goals) setTempGoals(session.user.goals);
-      // @ts-ignore
-      if (session.user.dailyLog) setDailyLog(session.user.dailyLog);
-
-      if (!hasChecked.current) {
-          checkDayAndSync();
-          hasChecked.current = true;
-      }
-    }
-  }, [session, status, router]);
 
   useEffect(() => {
     import('@ionic/pwa-elements/loader').then(loader => { loader.defineCustomElements(window); });
@@ -83,7 +77,7 @@ export default function Home() {
 
   const tirarFoto = async () => {
     try {
-      const photo = await Camera.getPhoto({ quality: 50, width: 600, resultType: CameraResultType.Base64 });
+      const photo = await Camera.getPhoto({ quality: 80, width: 800, resultType: CameraResultType.Base64 });
       if (photo.base64String) {
         setImagem(`data:image/jpeg;base64,${photo.base64String}`);
         processar(`data:image/jpeg;base64,${photo.base64String}`);
@@ -104,17 +98,13 @@ export default function Home() {
     setAddStatus('loading');
     try {
       const horaAtual = new Date().toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
-
       const payload: any = {
           name: dados.nome, 
           calories: dados.calorias, protein: dados.proteina, carbs: dados.hidratos, fat: dados.gordura,
-          
           fiber: dados.fibra, sugar: dados.acucar, sodium: dados.sodio, cholesterol: dados.colesterol,
           potassium: dados.potassio, calcium: dados.calcio, iron: dados.ferro, vitC: dados.vitaminaC, vitD: dados.vitaminaD,
-          
           magnesium: dados.magnesio, zinc: dados.zinco, omega3: dados.omega3,
           vitB12: dados.vitaminaB12, vitB9: dados.vitaminaB9, selenium: dados.selenio,
-
           time: horaAtual 
       };
       
@@ -125,19 +115,9 @@ export default function Home() {
         await update({ dailyLog: json.dailyLog });
         setDailyLog(json.dailyLog);
         setAddStatus('success');
-        
-        setTimeout(() => { 
-            setImagem(null); 
-            setDados(null); 
-            setAddStatus('idle'); 
-        }, 1500);
-      } else {
-        throw new Error("Falha no servidor");
-      }
-    } catch (e) { 
-        setAddStatus('idle'); 
-        alert("Erro ao guardar. Tenta novamente."); 
-    }
+        setTimeout(() => { setImagem(null); setDados(null); setAddStatus('idle'); }, 1500);
+      } else { throw new Error("Falha"); }
+    } catch (e) { setAddStatus('idle'); alert("Erro ao guardar."); }
   };
 
   const addNutrient = async (key: string) => {
@@ -173,36 +153,35 @@ export default function Home() {
   const goals = session?.user?.goals || {};
   const currentCalories = dailyLog.calories || 0;
   const goalCalories = goals.calories || 2000;
-  
   const caloriesRemaining = goalCalories - currentCalories;
   const isCaloriesMet = caloriesRemaining <= 0;
-
   const progressPct = goalCalories > 0 ? Math.min(100, (currentCalories / goalCalories) * 100) : 0;
   const firstName = session?.user?.name?.split(' ')[0] || "Visitante";
 
   return (
-    <div className="min-h-screen bg-[#F2F2F7] text-gray-900 font-sans pb-32 relative overflow-hidden">
+    <div className="min-h-screen bg-black text-white font-sans pb-32 relative overflow-hidden">
       
-      {/* SETTINGS DRAWER */}
+      {/* SETTINGS DRAWER (FIXO EM DARK MODE) */}
       {showSettings && (
         <div className="fixed inset-0 z-50 flex justify-end">
-          <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setShowSettings(false)}></div>
-          <div className="relative w-[85%] max-w-sm h-full bg-white shadow-2xl p-6 flex flex-col animate-slide-left overflow-y-auto">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowSettings(false)}></div>
+          <div className="relative w-[85%] max-w-sm h-full bg-zinc-900 shadow-2xl p-6 flex flex-col animate-slide-left overflow-y-auto border-l border-zinc-800">
+            
             <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-black">Metas</h2>
-                <button onClick={() => setShowSettings(false)} className="w-8 h-8 bg-gray-100 rounded-full font-bold">✕</button>
+                <h2 className="text-2xl font-black text-white">Definições</h2>
+                <button onClick={() => setShowSettings(false)} className="w-8 h-8 bg-zinc-800 rounded-full font-bold text-gray-300">✕</button>
             </div>
             
             <div className="mb-8">
-                <h3 className="font-bold text-gray-400 text-xs uppercase mb-4">Os teus Nutrientes</h3>
+                <h3 className="font-bold text-gray-400 text-xs uppercase mb-4">Nutrientes & Metas</h3>
                 
                 <div className="space-y-3 mb-6">
-                    {activeKeys.length === 0 && <p className="text-sm text-gray-400 italic">Nenhuma meta extra selecionada.</p>}
+                    {activeKeys.length === 0 && <p className="text-sm text-gray-400 italic">Nenhuma meta extra.</p>}
                     
                     {activeKeys.map(key => (
-                        <div key={key} className="bg-gray-50 p-3 rounded-xl border border-gray-100 flex items-center justify-between">
+                        <div key={key} className="bg-zinc-800 p-3 rounded-xl border border-zinc-700 flex items-center justify-between">
                             <div>
-                                <p className="font-bold text-sm">{NUTRIENT_CONFIG[key].label}</p>
+                                <p className="font-bold text-sm text-gray-200">{NUTRIENT_CONFIG[key].label}</p>
                                 <p className="text-[10px] text-gray-400">Estimado: {NUTRIENT_CONFIG[key].daily}{NUTRIENT_CONFIG[key].unit}</p>
                             </div>
                             <div className="flex items-center gap-2">
@@ -210,7 +189,7 @@ export default function Home() {
                                     type="number" 
                                     value={tempGoals[key]} 
                                     onChange={(e) => updateGoalValue(key, e.target.value)}
-                                    className="w-16 p-1 text-center bg-white rounded-md border text-sm font-bold"
+                                    className="w-16 p-1 text-center bg-zinc-900 text-white rounded-md border border-zinc-700 text-sm font-bold"
                                 />
                                 <span className="text-xs font-bold text-gray-400">{NUTRIENT_CONFIG[key].unit}</span>
                                 <button onClick={() => removeNutrient(key)} className="ml-2 text-red-400 font-bold p-1">✕</button>
@@ -222,10 +201,10 @@ export default function Home() {
                 <h3 className="font-bold text-gray-400 text-xs uppercase mb-2">Adicionar Meta</h3>
                 <input 
                     type="text" 
-                    placeholder="Procurar (ex: Magnésio, Zinco...)" 
+                    placeholder="Procurar (ex: Magnésio...)" 
                     value={searchTerm}
                     onChange={e => setSearchTerm(e.target.value)}
-                    className="w-full p-3 bg-gray-100 rounded-xl mb-3 text-sm outline-none focus:ring-2 ring-black/10"
+                    className="w-full p-3 bg-zinc-800 text-white rounded-xl mb-3 text-sm outline-none focus:ring-2 ring-white/10"
                 />
                 
                 <div className="space-y-2 max-h-40 overflow-y-auto">
@@ -233,10 +212,10 @@ export default function Home() {
                         <button 
                             key={key} 
                             onClick={() => addNutrient(key)}
-                            className="w-full flex items-center justify-between p-3 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors text-left"
+                            className="w-full flex items-center justify-between p-3 rounded-xl border border-zinc-700 hover:bg-zinc-800 transition-colors text-left"
                         >
-                            <span className="font-bold text-sm">{NUTRIENT_CONFIG[key].label}</span>
-                            <span className="text-xs bg-black text-white px-2 py-1 rounded-md font-bold">+ Adicionar</span>
+                            <span className="font-bold text-sm text-gray-200">{NUTRIENT_CONFIG[key].label}</span>
+                            <span className="text-xs bg-white text-black px-2 py-1 rounded-md font-bold">+ Adicionar</span>
                         </button>
                     ))}
                     {availableToAdd.length === 0 && searchTerm !== "" && (
@@ -246,47 +225,47 @@ export default function Home() {
             </div>
 
             <div className="mt-auto space-y-3">
-              <button onClick={() => router.push('/onboarding')} className="w-full p-4 bg-gray-50 font-bold rounded-xl text-left">✏️ Recalcular Macros Principais</button>
-              <button onClick={() => signOut()} className="w-full p-4 bg-red-50 text-red-600 font-bold rounded-xl flex items-center justify-center gap-2"><LogOutIcon className="w-5 h-5"/> Sair</button>
+              <button onClick={() => router.push('/onboarding')} className="w-full p-4 bg-zinc-800 font-bold rounded-xl text-left text-white">✏️ Recalcular Macros</button>
+              <button onClick={() => signOut()} className="w-full p-4 bg-red-900/20 text-red-500 font-bold rounded-xl flex items-center justify-center gap-2"><LogOutIcon className="w-5 h-5"/> Sair</button>
             </div>
           </div>
         </div>
       )}
 
       {/* HEADER */}
-      <header className="fixed top-0 w-full bg-white/85 backdrop-blur-xl z-20 px-6 py-4 border-b border-gray-200/50 flex justify-between items-center">
+      <header className="fixed top-0 w-full bg-black/85 backdrop-blur-xl z-20 px-6 py-4 border-b border-white/10 flex justify-between items-center">
         <div className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-xl overflow-hidden shadow-sm border border-gray-100">
+            <div className="w-10 h-10 rounded-xl overflow-hidden shadow-sm border border-zinc-800">
                 <img src="/icon-v2.jpg" alt="Logo" className="w-full h-full object-cover" />
             </div>
-            <h1 className="text-lg font-black tracking-tight text-gray-900">NutriScan</h1>
+            <h1 className="text-lg font-black tracking-tight text-white">NutriScan</h1>
         </div>
-        <button onClick={() => setShowSettings(true)} className="w-10 h-10 rounded-full bg-gray-100 overflow-hidden border-2 border-white shadow-sm active:scale-95 transition-transform">
-           {session?.user?.image ? (<img src={session.user.image} className="w-full h-full object-cover"/>) : (<div className="w-full h-full flex items-center justify-center">👤</div>)}
+        <button onClick={() => setShowSettings(true)} className="w-10 h-10 rounded-full bg-zinc-800 overflow-hidden border-2 border-zinc-700 shadow-sm active:scale-95 transition-transform">
+           {session?.user?.image ? (<img src={session.user.image} className="w-full h-full object-cover"/>) : (<div className="w-full h-full flex items-center justify-center text-white">👤</div>)}
         </button>
       </header>
 
       <main className="pt-24 px-6 flex flex-col items-center w-full max-w-md mx-auto">
         
         <div className="w-full mb-4">
-            <h1 className="text-3xl font-black text-gray-900 tracking-tight">
+            <h1 className="text-3xl font-black text-white tracking-tight">
                 Olá, <span className="text-gray-500">{firstName}</span> 👋
             </h1>
         </div>
 
-        <button onClick={() => router.push('/history')} className="w-full mb-6 bg-white p-4 rounded-[1.5rem] shadow-sm flex items-center justify-between group active:scale-95 transition-transform">
+        <button onClick={() => router.push('/history')} className="w-full mb-6 bg-zinc-900 p-4 rounded-[1.5rem] shadow-sm flex items-center justify-between group active:scale-95 transition-transform border border-zinc-800">
             <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center text-xl">🗓️</div>
+                <div className="w-10 h-10 bg-zinc-800 rounded-full flex items-center justify-center text-xl">🗓️</div>
                 <div className="text-left">
-                    <p className="font-bold text-sm">Ver Histórico</p>
+                    <p className="font-bold text-sm text-white">Ver Histórico</p>
                     <p className="text-xs text-gray-400">Consulta os dias anteriores</p>
                 </div>
             </div>
-            <span className="text-gray-300 group-hover:text-black transition-colors">→</span>
+            <span className="text-zinc-600 group-hover:text-white transition-colors">→</span>
         </button>
 
         {goalCalories > 0 && (
-          <div className="w-full bg-black text-white p-6 rounded-[2rem] shadow-xl shadow-black/10 mb-8 relative overflow-hidden">
+          <div className="w-full bg-zinc-900 text-white p-6 rounded-[2rem] shadow-xl shadow-black/50 mb-8 relative overflow-hidden border border-zinc-800">
             
             <div className="flex justify-between items-start mb-2 relative z-10">
                 <div>
@@ -321,7 +300,6 @@ export default function Home() {
                 <MiniMacro label="Gord" current={dailyLog.fat} goal={goals.fat} />
             </div>
 
-            {/* EXTRAS ATIVOS */}
             {activeKeys.length > 0 && (
                 <div className="mt-4 pt-4 border-t border-white/10 grid grid-cols-3 gap-2 relative z-10">
                     {activeKeys.map(key => (
@@ -338,12 +316,15 @@ export default function Home() {
           </div>
         )}
 
-        {/* ÁREA DA CÂMARA */}
-        <div className="relative w-full aspect-square bg-white rounded-[2.5rem] shadow-sm overflow-hidden border border-white mb-6">
-          {imagem ? (<img src={imagem} className="w-full h-full object-cover" />) : (
-            <div className="w-full h-full flex flex-col items-center justify-center bg-gray-50 text-gray-300">
+        {/* ÁREA DA CÂMARA (CORRIGIDA) */}
+        <div className="relative w-full aspect-square bg-zinc-900 rounded-[2.5rem] shadow-sm overflow-hidden border border-zinc-800 mb-6">
+          {imagem ? (
+            // 👇 AQUI ESTÁ A CORREÇÃO: object-contain em vez de object-cover
+            <img src={imagem} className="w-full h-full object-contain" />
+            ) : (
+            <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-800 text-zinc-600">
               <CameraIcon className="w-16 h-16 opacity-20 mb-4" />
-              <p className="font-bold text-gray-400 text-sm">Fotografa a tua refeição</p>
+              <p className="font-bold text-zinc-500 text-sm">Fotografa a tua refeição</p>
             </div>
           )}
           {loading && (
@@ -356,8 +337,8 @@ export default function Home() {
 
         {dados && (
           <div className="w-full animate-slide-up pb-32">
-            <div className="bg-white p-5 rounded-[2rem] shadow-sm border border-gray-100 mb-4">
-                <h2 className="text-2xl font-black">{dados.nome}</h2>
+            <div className="bg-zinc-900 p-5 rounded-[2rem] shadow-sm border border-zinc-800 mb-4">
+                <h2 className="text-2xl font-black text-white">{dados.nome}</h2>
                 <p className="text-gray-500 text-sm mt-1">{dados.descricao}</p>
             </div>
             
@@ -367,7 +348,6 @@ export default function Home() {
               <MacroCard icon="🌾" label="Carbs" val={dados.hidratos} unit="g" />
               <MacroCard icon="🥑" label="Gordura" val={dados.gordura} unit="g" />
               
-              {/* 👇 AQUI USAMOS O ÍCONE CONFIGURADO EM VEZ DO TUBO */}
               {activeKeys.map(key => {
                   let aiValue = 0;
                   if (key === 'fiber') aiValue = dados.fibra;
@@ -379,7 +359,6 @@ export default function Home() {
                   if (key === 'iron') aiValue = dados.ferro;
                   if (key === 'vitC') aiValue = dados.vitaminaC;
                   if (key === 'vitD') aiValue = dados.vitaminaD;
-                  
                   if (key === 'magnesium') aiValue = dados.magnesio;
                   if (key === 'zinc') aiValue = dados.zinco;
                   if (key === 'omega3') aiValue = dados.omega3;
@@ -405,11 +384,11 @@ export default function Home() {
               onClick={adicionarAoDiario}
               disabled={addStatus !== 'idle'}
               className={`w-full py-5 rounded-[1.5rem] font-bold text-lg shadow-xl flex items-center justify-center gap-3 transition-all duration-300 transform active:scale-95 ${
-                  addStatus === 'success' ? 'bg-green-500 text-white scale-105' : 'bg-black text-white hover:bg-gray-900'
+                  addStatus === 'success' ? 'bg-green-500 text-white scale-105' : 'bg-white text-black hover:bg-gray-200'
               }`}
             >
               {addStatus === 'idle' && <><span>Adicionar</span> <span className="text-xl font-light">|</span> <span className="text-xl">+{dados.calorias} kcal</span></>}
-              {addStatus === 'loading' && <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+              {addStatus === 'loading' && <div className="w-6 h-6 border-2 border-black/30 border-t-black rounded-full animate-spin" />}
               {addStatus === 'success' && <><span>Registado!</span> <span className="text-2xl">✅</span></>}
             </button>
           </div>
@@ -418,7 +397,7 @@ export default function Home() {
       
       {!dados && (
         <div className="fixed bottom-8 left-0 w-full flex justify-center z-30 pointer-events-none">
-            <button onClick={tirarFoto} className="pointer-events-auto bg-black text-white h-16 px-8 rounded-full shadow-2xl flex items-center gap-3 font-bold text-lg active:scale-95 transition-transform">
+            <button onClick={tirarFoto} className="pointer-events-auto bg-white text-black h-16 px-8 rounded-full shadow-2xl flex items-center gap-3 font-bold text-lg active:scale-95 transition-transform">
                 <CameraIcon className="w-6 h-6" /> <span>Escanear</span>
             </button>
         </div>
@@ -427,7 +406,7 @@ export default function Home() {
   );
 }
 
-// 👇 NOVA VERSÃO ELEGANTE (DARK MODE TRANSPARENTE)
+// COMPONENTES AUXILIARES (SEMPRE EM DARK MODE)
 function MiniMacro({ label, current = 0, goal = 0, unit = "g" }: any) {
     const safeGoal = goal || 1; 
     const pct = Math.min(100, (current / safeGoal) * 100);
@@ -435,15 +414,12 @@ function MiniMacro({ label, current = 0, goal = 0, unit = "g" }: any) {
 
     return (
         <div className="relative overflow-hidden bg-white/5 border border-white/10 p-3 rounded-2xl flex flex-col justify-between h-24 group hover:bg-white/10 transition-colors">
-            {/* Label e Ícone de Sucesso */}
             <div className="flex justify-between items-start">
                 <p className={`text-[10px] font-bold uppercase tracking-wider ${isMet ? 'text-green-400' : 'text-gray-400'}`}>
                     {label}
                 </p>
                 {isMet && <span className="text-green-400 text-xs animate-pulse">✓</span>}
             </div>
-
-            {/* Valores */}
             <div className="z-10 mt-1">
                 <p className={`text-xl font-black leading-none ${isMet ? 'text-green-400' : 'text-white'}`}>
                     {Math.round(current)}
@@ -453,10 +429,7 @@ function MiniMacro({ label, current = 0, goal = 0, unit = "g" }: any) {
                     Meta: {goal}{unit}
                 </p>
             </div>
-
-            {/* Barra de Progresso (Fundo) */}
             <div className="absolute bottom-0 left-0 w-full h-1.5 bg-gray-800/50">
-                {/* Barra de Progresso (Preenchimento) */}
                 <div 
                     className={`h-full transition-all duration-700 ease-out ${isMet ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]' : 'bg-blue-500'}`}
                     style={{ width: `${pct}%` }}
@@ -468,12 +441,12 @@ function MiniMacro({ label, current = 0, goal = 0, unit = "g" }: any) {
 
 function MacroCard({ icon, label, val, unit }: any) {
     return (
-        <div className="bg-white p-4 rounded-[1.5rem] border border-gray-100 flex flex-col items-start min-h-[100px] justify-center">
+        <div className="bg-zinc-900 p-4 rounded-[1.5rem] border border-zinc-800 flex flex-col items-start min-h-[100px] justify-center transition-colors">
             <div className="flex items-center gap-2 mb-1">
                 <span className="text-xl">{icon}</span>
                 <p className="text-[10px] text-gray-400 font-bold uppercase">{label}</p>
             </div>
-            <p className="text-2xl font-black tracking-tight">{Math.round(val)}{unit}</p>
+            <p className="text-2xl font-black tracking-tight text-white">{Math.round(val)}{unit}</p>
         </div>
     )
 }

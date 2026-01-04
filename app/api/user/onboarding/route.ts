@@ -30,59 +30,43 @@ export async function POST(req: Request) {
     const tdee = bmr * (activityMultipliers[activity] || 1.2);
 
     // ---------------------------------------------------------
-    // 3. LÓGICA "GREEK GOD" (Corrigida e Refinada)
+    // 3. LÓGICA "GREEK GOD"
     // ---------------------------------------------------------
     let finalCalories = tdee;
     let adjustedGoal = goal; 
 
-    // --- REGRA DE OURO: DETEÇÃO DE FASE ---
-    // Se tens > 15% de gordura, NÃO podes fazer Bulking. Ponto final.
-    // Ignoramos se o user escolheu "Gain" ou "Maintain".
-    // Forçamos "CUT" para limpar a cintura e mostrar os abdominais.
+    // Se tens > 15% de gordura, força CUT ou RECOMP
     if (bodyFat && Number(bodyFat) > 15) {
         adjustedGoal = 'cut_aesthetic'; 
     }
 
-    // --- CÁLCULO DE CALORIAS ---
-    
     if (adjustedGoal === 'cut_aesthetic') {
-        // Défice Agressivo mas Seguro (-400 a -500 kcal)
-        // Para ti: 2400 - 400 = 2000 kcal (O alvo perfeito)
         finalCalories = tdee - 400;
     } 
     else if (adjustedGoal === 'lose') {
-        // Lógica normal de perda de peso (se BF < 15 mas quer perder mais)
         finalCalories = tdee - 500;
     }
     else if (adjustedGoal === 'recomp') {
         finalCalories = tdee - 200;
     }
     else if (adjustedGoal === 'gain') {
-        // Só entra aqui se BF <= 15%. Lean Bulk controlado.
         finalCalories = tdee + 250; 
     }
 
-    // Proteção mínima de segurança (nunca baixar de 1500 para homens)
     if (finalCalories < 1500 && gender === 'male') finalCalories = 1500;
-
     finalCalories = Math.round(finalCalories);
 
     // ---------------------------------------------------------
-    // 4. MACROS (Matemática Fixa, não Percentagens)
+    // 4. MACROS
     // ---------------------------------------------------------
-    
     const weightNum = Number(weight);
     let proteinGrams = 0;
     let fatGrams = 0;
     let carbsGrams = 0;
 
-    // A: PROTEÍNA (A prioridade)
-    // Cut/Recomp: 2.3g a 2.5g por kg (Para segurar músculo no défice)
-    // Bulk: 1.8g a 2.0g por kg
     let proteinMultiplier = 2.0;
-    
     if (adjustedGoal === 'cut_aesthetic' || adjustedGoal === 'lose') {
-        proteinMultiplier = 2.4; // Ex: 62kg * 2.4 = ~148g (Perfeito)
+        proteinMultiplier = 2.4; 
     } else if (adjustedGoal === 'recomp') {
         proteinMultiplier = 2.2;
     } else {
@@ -91,49 +75,51 @@ export async function POST(req: Request) {
 
     proteinGrams = Math.round(weightNum * proteinMultiplier);
 
-    // B: GORDURA (O ajuste fino do teu amigo)
-    // Em vez de dar percentagem livre (que dava 101g), fixamos gramas por corpo.
-    // Cut: 0.9g a 1.0g por kg (Suficiente para hormonas, baixo para poupar kcal)
-    // Bulk: 1.0g a 1.2g por kg
     let fatMultiplier = 1.0; 
-    
     if (adjustedGoal === 'cut_aesthetic') {
-        fatMultiplier = 0.9; // Ex: 62kg * 0.9 = ~56g (Muito melhor que 101g)
+        fatMultiplier = 0.9;
     }
-
     fatGrams = Math.round(weightNum * fatMultiplier);
 
-    // C: HIDRATOS (O resto das calorias vai tudo para aqui para treinares bem)
     const caloriesUsed = (proteinGrams * 4) + (fatGrams * 9);
     const remainingCalories = finalCalories - caloriesUsed;
-    
-    // Garante que não dá negativo (matemática defensiva)
     carbsGrams = Math.max(0, Math.round(remainingCalories / 4));
 
     // ---------------------------------------------------------
-    // 5. GRAVAR NA BD
+    // 5. GRAVAR NA BD (COM PROTEÇÃO DE DADOS)
     // ---------------------------------------------------------
     await connectDB();
+    
+    // 👇 PASSO DE SEGURANÇA: Buscar o utilizador primeiro
+    const currentUser = await User.findOne({ email: session.user.email });
+    
+    // Recupera as metas que já existiam (Zinco, Magnésio, etc.)
+    // Se não existir nada, cria objeto vazio.
+    const existingGoals = currentUser?.goals ? JSON.parse(JSON.stringify(currentUser.goals)) : {};
+
+    // Fundir as metas antigas com os novos cálculos
+    const mergedGoals = {
+        ...existingGoals, // Mantém o que já lá estava
+        calories: finalCalories, // Atualiza só os macros principais
+        protein: proteinGrams,
+        carbs: carbsGrams,
+        fat: fatGrams 
+    };
     
     await User.findOneAndUpdate(
       { email: session.user.email },
       {
         onboardingCompleted: true,
         info: { age, weight, height, gender, activity, goal: adjustedGoal, targetWeight, targetDate, bodyFat }, 
-        goals: { 
-            calories: finalCalories, 
-            protein: proteinGrams, 
-            carbs: carbsGrams, 
-            fat: fatGrams 
-        }
+        goals: mergedGoals // Gravamos o objeto fundido
       },
       { new: true, upsert: true }
     );
 
     return NextResponse.json({ 
-      message: "Plano Estético Atualizado!", 
+      message: "Plano Atualizado (Nutrientes Mantidos)!", 
       adjustedGoal: adjustedGoal, 
-      goals: { calories: finalCalories, protein: proteinGrams, carbs: carbsGrams, fat: fatGrams } 
+      goals: mergedGoals 
     }, { status: 200 });
 
   } catch (error) {

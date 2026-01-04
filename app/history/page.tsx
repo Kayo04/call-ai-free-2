@@ -4,26 +4,26 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 
-// Configuração Visual dos Nutrientes (Igual à Page Principal)
+// 👇 1. CONFIGURAÇÃO COM AS CORES DEFINIDAS
 const NUTRIENT_CONFIG: any = {
     // Originais
-    fiber: { label: 'Fibra', unit: 'g' },
-    sugar: { label: 'Açúcar', unit: 'g' },
-    sodium: { label: 'Sódio', unit: 'mg' },
-    cholesterol: { label: 'Colesterol', unit: 'mg' },
-    potassium: { label: 'Potássio', unit: 'mg' },
-    calcium: { label: 'Cálcio', unit: 'mg' },
-    iron: { label: 'Ferro', unit: 'mg' },
-    vitC: { label: 'Vit C', unit: 'mg' },
-    vitD: { label: 'Vit D', unit: 'iu' },
+    fiber: { label: 'Fibra', unit: 'g', color: 'teal' },
+    sugar: { label: 'Açúcar', unit: 'g', color: 'pink' },
+    sodium: { label: 'Sódio', unit: 'mg', color: 'slate' },
+    cholesterol: { label: 'Colesterol', unit: 'mg', color: 'purple' },
+    potassium: { label: 'Potássio', unit: 'mg', color: 'indigo' },
+    calcium: { label: 'Cálcio', unit: 'mg', color: 'stone' },
+    iron: { label: 'Ferro', unit: 'mg', color: 'red' },
+    vitC: { label: 'Vit C', unit: 'mg', color: 'orange' },
+    vitD: { label: 'Vit D', unit: 'iu', color: 'yellow' },
     
     // Novos
-    magnesium: { label: 'Magnésio', unit: 'mg' },
-    zinc: { label: 'Zinco', unit: 'mg' }, 
-    omega3: { label: 'Ómega 3', unit: 'mg' },
-    vitB12: { label: 'Vit B12', unit: 'mcg' },
-    vitB9: { label: 'Vit B9', unit: 'mcg' },
-    selenium: { label: 'Selénio', unit: 'mcg' }
+    magnesium: { label: 'Magnésio', unit: 'mg', color: 'emerald' },
+    zinc: { label: 'Zinco', unit: 'mg', color: 'zinc' }, 
+    omega3: { label: 'Ómega 3', unit: 'mg', color: 'cyan' },
+    vitB12: { label: 'Vit B12', unit: 'mcg', color: 'blue' },
+    vitB9: { label: 'Vit B9', unit: 'mcg', color: 'lime' },
+    selenium: { label: 'Selénio', unit: 'mcg', color: 'rose' }
 };
 
 export default function HistoryPage() {
@@ -54,7 +54,7 @@ export default function HistoryPage() {
     }
   }, [session]);
 
-  if (status === "loading") return <div className="min-h-screen bg-[#F2F2F7] p-6 text-center pt-20">A carregar...</div>;
+  if (status === "loading") return <div className="min-h-screen bg-black text-white p-6 text-center pt-20">A carregar...</div>;
   
   const daysInMonth = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0).getDate();
   const daysArray = Array.from({ length: daysInMonth }, (_, i) => i + 1);
@@ -108,29 +108,31 @@ export default function HistoryPage() {
   const activeExtras = Object.keys(NUTRIENT_CONFIG).filter(key => (userGoals[key] || 0) > 0);
 
   return (
-    <div className="min-h-screen bg-[#F2F2F7] text-gray-900 font-sans p-6 pb-32">
+    <div className="min-h-screen bg-black text-white font-sans p-6 pb-32">
       
+      {/* HEADER */}
       <div className="flex items-center justify-between mb-8">
-        <button onClick={() => router.back()} className="w-10 h-10 bg-white rounded-full shadow-sm flex items-center justify-center font-bold active:scale-90 transition-transform">←</button>
+        <button onClick={() => router.back()} className="w-10 h-10 bg-zinc-900 rounded-full flex items-center justify-center font-bold active:scale-90 transition-transform text-white">←</button>
         <div className="flex flex-col items-center">
             <h1 className="text-xl font-black">Histórico</h1>
-            <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">{successCount}/{daysInMonth} DIAS COMPLETOS</span>
+            <span className="text-xs text-zinc-500 font-bold uppercase tracking-wider">{successCount}/{daysInMonth} DIAS COMPLETOS</span>
         </div>
         <div className="w-10"></div>
       </div>
 
-      <div className="bg-white rounded-[2.5rem] p-6 shadow-xl mb-8">
+      {/* CALENDÁRIO */}
+      <div className="bg-zinc-900 rounded-[2.5rem] p-6 shadow-xl shadow-black/50 mb-8 border border-zinc-800">
         <div className="flex justify-between items-center mb-6 px-2">
-            <button onClick={() => changeMonth(-1)} className="p-2 text-gray-400 hover:text-black font-bold text-xl">❮</button>
+            <button onClick={() => changeMonth(-1)} className="p-2 text-zinc-500 hover:text-white font-bold text-xl">❮</button>
             <h2 className="text-lg font-black capitalize">
                 {viewDate.toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' })}
             </h2>
-            <button onClick={() => changeMonth(1)} className="p-2 text-gray-400 hover:text-black font-bold text-xl">❯</button>
+            <button onClick={() => changeMonth(1)} className="p-2 text-zinc-500 hover:text-white font-bold text-xl">❯</button>
         </div>
         
         <div className="grid grid-cols-7 gap-3">
             {['D','S','T','Q','Q','S','S'].map((d, i) => (
-                <div key={i} className="text-center text-[10px] font-bold text-gray-300 mb-1">{d}</div>
+                <div key={i} className="text-center text-[10px] font-bold text-zinc-600 mb-1">{d}</div>
             ))}
             
             {daysArray.map(day => {
@@ -138,19 +140,19 @@ export default function HistoryPage() {
                 const isToday = day === today.getDate() && viewDate.getMonth() === today.getMonth() && viewDate.getFullYear() === today.getFullYear();
                 const isSelected = selectedLog && new Date(selectedLog.date || new Date()).getDate() === day && viewDate.getMonth() === new Date(selectedLog.date).getMonth();
 
-                let bg = "bg-gray-50 text-gray-300";
+                let bg = "bg-zinc-800 text-zinc-500";
                 
                 if (log && log.calories > 0) {
                     const metGoal = log.metGoal !== undefined ? log.metGoal : checkSuccess(log.calories, goalCalories);
                     if (metGoal) {
-                        bg = "bg-emerald-500 text-white shadow-md shadow-emerald-200";
+                        bg = "bg-green-600 text-white shadow-md shadow-green-900/50";
                     } else {
-                        bg = "bg-red-600 text-white shadow-md shadow-red-200";
+                        bg = "bg-red-600 text-white shadow-md shadow-red-900/50";
                     }
                 }
 
-                if (isToday && !log) bg = "ring-2 ring-black text-black font-bold";
-                if (isSelected) bg = "bg-black text-white scale-110 shadow-xl z-10 ring-4 ring-white";
+                if (isToday && !log) bg = "ring-2 ring-white text-white font-bold";
+                if (isSelected) bg = "bg-white text-black scale-110 shadow-xl z-10 ring-4 ring-black";
 
                 return (
                     <button 
@@ -169,40 +171,39 @@ export default function HistoryPage() {
           <div className="animate-slide-up space-y-4">
               
               <div className="px-4">
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Detalhes de</p>
-                  <h2 className="text-3xl font-black capitalize text-gray-900 mt-1">
+                  <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Resumo de</p>
+                  <h2 className="text-3xl font-black capitalize text-white mt-1">
                     {new Date(selectedLog.date || new Date()).toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric' })}
                   </h2>
               </div>
 
-              {/* CARTÃO PRINCIPAL (ESTILO DARK MODE) */}
-              <div className="bg-black text-white p-6 rounded-[2rem] shadow-xl overflow-hidden relative">
-                  <div className="flex justify-between items-start mb-6 relative z-10">
-                    <div className="flex flex-col">
-                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Total Ingerido</span>
-                        <div className="flex items-baseline gap-1">
-                            <h3 className="text-5xl font-black tracking-tighter">{Math.round(selectedLog.calories || 0)}</h3>
-                            <span className="font-bold text-gray-500 text-lg">kcal</span>
-                        </div>
+              {/* CARTÃO DE TOTAIS */}
+              <div className="bg-zinc-900 p-6 rounded-[2rem] shadow-xl border border-zinc-800">
+                  <div className="flex justify-between items-start mb-8">
+                    <div className="flex items-baseline gap-1">
+                        <h3 className="text-6xl font-black tracking-tighter text-white">{Math.round(selectedLog.calories || 0)}</h3>
+                        <span className="font-bold text-zinc-500 text-lg">kcal</span>
                     </div>
                     
                     {selectedLog.calories > 0 && (
                         <div className={`px-4 py-2 rounded-full text-xs font-bold text-white ${
                             (selectedLog.metGoal !== undefined ? selectedLog.metGoal : checkSuccess(selectedLog.calories, goalCalories)) 
-                            ? "bg-green-500 shadow-[0_0_15px_rgba(34,197,94,0.4)]" 
-                            : "bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)]"
+                            ? "bg-green-600 shadow-lg shadow-green-900/20" 
+                            : "bg-red-600 shadow-lg shadow-red-900/20"
                         }`}>
-                            {(selectedLog.metGoal !== undefined ? selectedLog.metGoal : checkSuccess(selectedLog.calories, goalCalories)) ? "META ATINGIDA" : "META FALHADA"}
+                            {(selectedLog.metGoal !== undefined ? selectedLog.metGoal : checkSuccess(selectedLog.calories, goalCalories)) ? "CUMPRIDO" : "FALHOU"}
                         </div>
                     )}
                   </div>
 
-                  {/* GRID DE MACROS COM BARRAS */}
-                  <div className="grid grid-cols-3 gap-3 relative z-10">
+                  {/* GRID DE BARRAS DE PROGRESSO */}
+                  <div className="grid grid-cols-3 gap-3">
+                      {/* Macros Principais */}
                       <MacroBar label="Prot" val={selectedLog.protein} goal={userGoals.protein} />
                       <MacroBar label="Carb" val={selectedLog.carbs} goal={userGoals.carbs} />
                       <MacroBar label="Gord" val={selectedLog.fat} goal={userGoals.fat} />
 
+                      {/* Micros e Extras */}
                       {activeExtras.map(key => (
                           <MacroBar 
                             key={key}
@@ -215,17 +216,17 @@ export default function HistoryPage() {
                   </div>
               </div>
 
-              <h3 className="text-xs font-bold text-gray-400 uppercase ml-4 mt-8 mb-3 tracking-wider">Refeições do dia</h3>
+              <h3 className="text-xs font-bold text-zinc-500 uppercase ml-4 mt-8 mb-3 tracking-wider">Refeições do dia</h3>
               
               {selectedLog.meals && selectedLog.meals.length > 0 ? (
                   <div className="space-y-3 pb-16 px-2">
                       {selectedLog.meals.slice().reverse().map((meal: any, idx: number) => (
-                          <div key={idx} className="bg-white p-5 rounded-[2rem] flex justify-between items-stretch shadow-sm border border-gray-100/80 relative overflow-hidden group transition-all hover:shadow-md">
+                          <div key={idx} className="bg-zinc-900 p-5 rounded-[2rem] flex justify-between items-stretch shadow-md border border-zinc-800 relative overflow-hidden">
                               
                               <div className="flex-1 pr-4 flex flex-col justify-center">
                                   <div className="flex items-baseline gap-2 mb-3">
-                                      <p className="font-black text-lg text-gray-900 leading-tight">{meal.name || "Refeição"}</p>
-                                      {meal.time && <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{meal.time}</span>}
+                                      <p className="font-black text-lg text-white leading-tight">{meal.name || "Refeição"}</p>
+                                      {meal.time && <span className="text-xs font-bold text-zinc-400 bg-zinc-800 px-2 py-0.5 rounded-full">{meal.time}</span>}
                                   </div>
                                   
                                   <div className="flex flex-wrap gap-2">
@@ -233,28 +234,29 @@ export default function HistoryPage() {
                                     {Math.round(meal.carbs) > 0 && <MacroTag label="CARB" val={meal.carbs} color="green" />}
                                     {Math.round(meal.fat) > 0 && <MacroTag label="GORD" val={meal.fat} color="orange" />}
 
-                                    {/* Mostra extras que tenham valor > 0 */}
+                                    {/* 👇 AQUI APLICAMOS AS CORES ESPECÍFICAS DE VOLTA */}
                                     {Object.keys(NUTRIENT_CONFIG).map(key => {
                                         if (['protein','carbs','fat'].includes(key)) return null;
                                         const val = meal[key];
                                         if (!val || val === 0) return null;
                                         
-                                        return <MacroTag key={key} label={NUTRIENT_CONFIG[key].label} val={val} unit={NUTRIENT_CONFIG[key].unit} color="gray" />
+                                        // Passamos a cor definida no config (ex: 'pink', 'teal')
+                                        return <MacroTag key={key} label={NUTRIENT_CONFIG[key].label} val={val} unit={NUTRIENT_CONFIG[key].unit} color={NUTRIENT_CONFIG[key].color} />
                                     })}
                                   </div>
                               </div>
 
-                              <div className="flex flex-col items-end justify-center pl-5 border-l border-gray-100">
-                                  <span className="block font-black text-3xl text-gray-900 leading-none tracking-tight">{Math.round(meal.calories)}</span>
-                                  <span className="text-[10px] text-gray-400 font-bold uppercase mt-1 tracking-wider">kcal</span>
+                              <div className="flex flex-col items-end justify-center pl-5 border-l border-zinc-800">
+                                  <span className="block font-black text-3xl text-white leading-none tracking-tight">{Math.round(meal.calories)}</span>
+                                  <span className="text-[10px] text-zinc-500 font-bold uppercase mt-1 tracking-wider">kcal</span>
                               </div>
                           </div>
                       ))}
                   </div>
               ) : (
-                  <div className="text-center py-12 mx-2 bg-white/50 rounded-[2rem] border-2 border-dashed border-gray-200">
+                  <div className="text-center py-12 mx-2 bg-zinc-900/50 rounded-[2rem] border-2 border-dashed border-zinc-800">
                         <p className="text-4xl mb-3 grayscale opacity-30">🥣</p>
-                        <p className="text-gray-400 text-sm font-bold">Nada registado neste dia.</p>
+                        <p className="text-zinc-500 text-sm font-bold">Nada registado.</p>
                   </div>
               )}
           </div>
@@ -263,37 +265,36 @@ export default function HistoryPage() {
   );
 }
 
-// 👇 COMPONENTE NOVO: BARRA DE PROGRESSO ELEGANTE (DARK MODE)
+// BARRA DE PROGRESSO
 function MacroBar({ label, val = 0, goal = 0, unit = "g" }: any) {
     const safeGoal = goal || 1;
     const pct = Math.min(100, (val / safeGoal) * 100);
     const isMet = val >= safeGoal;
+    const missing = Math.max(0, safeGoal - val);
 
     return (
-        <div className="relative overflow-hidden bg-white/5 border border-white/10 p-3 rounded-2xl flex flex-col justify-between h-20 group hover:bg-white/10 transition-colors">
-            {/* Label e Check */}
-            <div className="flex justify-between items-start">
-                <p className={`text-[9px] font-bold uppercase tracking-wider ${isMet ? 'text-green-400' : 'text-gray-400'}`}>
+        <div className="relative overflow-hidden bg-black/20 border border-white/5 p-3 rounded-2xl flex flex-col justify-between h-24 group hover:bg-white/5 transition-colors">
+            <div className="flex justify-between items-start mb-1">
+                <p className={`text-[10px] font-bold uppercase tracking-wider ${isMet ? 'text-green-400' : 'text-zinc-400'}`}>
                     {label}
                 </p>
-                {isMet && <span className="text-green-400 text-[10px] animate-pulse">✓</span>}
+                {isMet ? (
+                    <span className="text-green-400 text-[10px]">★</span>
+                ) : (
+                    <span className="text-[9px] text-blue-400 font-medium">Faltam {Math.round(missing)}{unit}</span>
+                )}
             </div>
-
-            {/* Valores */}
-            <div className="z-10 mt-1">
-                <p className={`text-lg font-black leading-none ${isMet ? 'text-green-400' : 'text-white'}`}>
-                    {Math.round(val)}<span className="text-[9px] opacity-60 ml-0.5">{unit}</span>
+            <div className="z-10">
+                <p className={`text-xl font-black leading-none ${isMet ? 'text-green-400' : 'text-white'}`}>
+                    {Math.round(val)}<span className="text-[10px] text-zinc-500 font-bold ml-0.5">{unit}</span>
                 </p>
-                <p className="text-[8px] text-gray-500 font-bold mt-0.5">
-                    /{goal}{unit}
+                <p className="text-[9px] text-zinc-600 font-bold mt-1">
+                    Meta: {goal}{unit}
                 </p>
             </div>
-
-            {/* Barra Fundo */}
-            <div className="absolute bottom-0 left-0 w-full h-1 bg-gray-800/50">
-                {/* Barra Fill */}
+            <div className="absolute bottom-0 left-0 w-full h-1.5 bg-zinc-800">
                 <div 
-                    className={`h-full transition-all duration-700 ease-out ${isMet ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]' : 'bg-blue-500'}`}
+                    className={`h-full transition-all duration-700 ease-out ${isMet ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.6)]' : 'bg-blue-500'}`}
                     style={{ width: `${pct}%` }}
                 />
             </div>
@@ -301,26 +302,47 @@ function MacroBar({ label, val = 0, goal = 0, unit = "g" }: any) {
     )
 }
 
-// 👇 COMPONENTE PARA AS REFEIÇÕES (TAGS SIMPLES)
+// 👇 2. TAGS COLORIDAS (ESTILO NEON PARA O MODO ESCURO)
 function MacroTag({ label, val, unit="g", color }: any) {
     const colors: any = {
-        blue: "bg-blue-50 text-blue-600",
-        green: "bg-green-50 text-green-600",
-        orange: "bg-orange-50 text-orange-600",
-        gray: "bg-gray-100 text-gray-600"
+        // Cores personalizadas (Fundo Transparente + Texto Brilhante + Borda Suave)
+        blue: "bg-blue-500/10 text-blue-400 border border-blue-500/20",
+        green: "bg-green-500/10 text-green-400 border border-green-500/20",
+        orange: "bg-orange-500/10 text-orange-400 border border-orange-500/20",
+        
+        // Cores dos Nutrientes (Mapeadas do NUTRIENT_CONFIG)
+        teal: "bg-teal-500/10 text-teal-400 border border-teal-500/20",
+        pink: "bg-pink-500/10 text-pink-400 border border-pink-500/20",
+        slate: "bg-slate-500/10 text-slate-300 border border-slate-500/20",
+        purple: "bg-purple-500/10 text-purple-400 border border-purple-500/20",
+        indigo: "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20",
+        stone: "bg-stone-500/10 text-stone-300 border border-stone-500/20",
+        red: "bg-red-500/10 text-red-400 border border-red-500/20",
+        yellow: "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20",
+        emerald: "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20",
+        zinc: "bg-zinc-700/30 text-zinc-300 border border-zinc-600/50", // Cinza especial
+        cyan: "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20",
+        lime: "bg-lime-500/10 text-lime-400 border border-lime-500/20",
+        rose: "bg-rose-500/10 text-rose-400 border border-rose-500/20",
+        
+        gray: "bg-zinc-800 text-zinc-400 border border-zinc-700" // Fallback
     };
     
-    // Cores específicas para os novos nutrientes (opcional)
+    // Pequeno ponto colorido ao lado (Opcional, dá um toque fixe)
     const dotColors: any = {
-        blue: "bg-blue-500",
-        green: "bg-green-500",
-        orange: "bg-orange-500",
-        gray: "bg-gray-400"
+        blue: "bg-blue-500", green: "bg-green-500", orange: "bg-orange-500",
+        teal: "bg-teal-500", pink: "bg-pink-500", slate: "bg-slate-400",
+        purple: "bg-purple-500", indigo: "bg-indigo-500", stone: "bg-stone-400",
+        red: "bg-red-500", yellow: "bg-yellow-500", emerald: "bg-emerald-500",
+        zinc: "bg-zinc-400", cyan: "bg-cyan-500", lime: "bg-lime-500", rose: "bg-rose-500",
     };
 
+    const activeColor = colors[color] || colors.gray;
+    const activeDot = dotColors[color] || "bg-zinc-500";
+
     return (
-        <span className={`text-[10px] font-bold px-2 py-1 rounded-md flex items-center gap-1 leading-none ${colors[color] || colors.gray}`}>
-            <div className={`w-1.5 h-1.5 rounded-full ${dotColors[color] || dotColors.gray}`}></div>
+        <span className={`text-[10px] font-bold px-2 py-1 rounded-md flex items-center gap-1.5 leading-none ${activeColor}`}>
+            <div className={`w-1.5 h-1.5 rounded-full ${activeDot}`}></div>
             {label.toUpperCase().slice(0, 4)} {Math.round(val)}{unit}
         </span>
     )
