@@ -10,18 +10,16 @@ export async function POST(req: Request) {
     if (!session?.user?.email) return NextResponse.json({ message: "Não autorizado" }, { status: 401 });
 
     const data = await req.json();
-    
     await connectDB();
     const user = await User.findOne({ email: session.user.email });
 
     if (!user) return NextResponse.json({ message: "Utilizador não encontrado" }, { status: 404 });
 
-    // Inicializa o dia se não existir
     if (!user.dailyLog) {
         user.dailyLog = { date: new Date(), meals: [], calories: 0, protein: 0, carbs: 0, fat: 0 };
     }
 
-    // 1. Criar a nova refeição
+    // 1. CONSTRUIR A REFEIÇÃO (Ler TODOS os campos)
     const newMeal = {
         name: data.name,
         calories: Number(data.calories) || 0,
@@ -29,7 +27,7 @@ export async function POST(req: Request) {
         carbs: Number(data.carbs) || 0,
         fat: Number(data.fat) || 0,
         
-        // Nutrientes
+        // Ler Micros (garantir que não vem null)
         fiber: Number(data.fiber) || 0,
         sugar: Number(data.sugar) || 0,
         sodium: Number(data.sodium) || 0,
@@ -51,13 +49,13 @@ export async function POST(req: Request) {
 
     user.dailyLog.meals.push(newMeal);
 
-    // 2. SOMAR AOS TOTAIS DO DIA (AQUI ESTAVA A FALHA!)
+    // 2. SOMAR AOS TOTAIS DO DIA
     user.dailyLog.calories += newMeal.calories;
     user.dailyLog.protein += newMeal.protein;
     user.dailyLog.carbs += newMeal.carbs;
     user.dailyLog.fat += newMeal.fat;
     
-    // Soma de TODOS os micros (Garante que se existir valor, soma; senão, soma 0)
+    // Somar Micros
     user.dailyLog.fiber = (user.dailyLog.fiber || 0) + newMeal.fiber;
     user.dailyLog.sugar = (user.dailyLog.sugar || 0) + newMeal.sugar;
     user.dailyLog.sodium = (user.dailyLog.sodium || 0) + newMeal.sodium;
@@ -74,18 +72,13 @@ export async function POST(req: Request) {
     user.dailyLog.vitB9 = (user.dailyLog.vitB9 || 0) + newMeal.vitB9;
     user.dailyLog.selenium = (user.dailyLog.selenium || 0) + newMeal.selenium;
     
-    // Verifica se cumpriu a meta calórica
-    const goalCals = user.goals?.calories || 2000;
-    const isSuccess = user.dailyLog.calories >= (goalCals * 0.95) && user.dailyLog.calories <= (goalCals * 1.05);
-    user.dailyLog.metGoal = isSuccess;
-
     user.markModified('dailyLog');
     await user.save();
 
-    return NextResponse.json({ message: "Refeição guardada e somada!", dailyLog: user.dailyLog });
+    return NextResponse.json({ message: "Guardado!", dailyLog: user.dailyLog });
 
   } catch (error) {
-    console.error("Erro ao adicionar refeição:", error);
+    console.error("Erro server:", error);
     return NextResponse.json({ message: "Erro interno" }, { status: 500 });
   }
 }

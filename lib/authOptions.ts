@@ -43,8 +43,10 @@ export const authOptions: NextAuthOptions = {
         session.user.goals = token.goals;
         // @ts-ignore
         session.user.dailyLog = token.dailyLog;
+        
+        // 🚨 MUDANÇA CRÍTICA: NÃO PASSAR O HISTÓRICO AQUI
         // @ts-ignore
-        session.user.history = token.history; // 👇 Passar histórico
+        session.user.history = []; 
       }
       return session;
     },
@@ -57,14 +59,13 @@ export const authOptions: NextAuthOptions = {
         token.goals = user.goals;
         // @ts-ignore
         token.dailyLog = user.dailyLog;
-        // @ts-ignore
-        token.history = user.history;
+        // 🚨 REMOVIDO: token.history = user.history;
       }
 
       // Refresh forçado da BD
       if (!user && token.email) {
         await connectDB();
-        const dbUser = await User.findOne({ email: token.email }).lean();
+        const dbUser = await User.findOne({ email: token.email }).select('-history').lean(); // 👈 Nota o select('-history')
         if (dbUser) {
            // @ts-ignore
            token.onboardingCompleted = dbUser.onboardingCompleted;
@@ -72,8 +73,7 @@ export const authOptions: NextAuthOptions = {
            token.goals = dbUser.goals;
            // @ts-ignore
            token.dailyLog = dbUser.dailyLog;
-           // @ts-ignore
-           token.history = dbUser.history; // 👇 Atualizar histórico
+           // 🚨 REMOVIDO AQUI TAMBÉM
         }
       }
 

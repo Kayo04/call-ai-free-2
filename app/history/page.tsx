@@ -4,9 +4,8 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 
-// 👇 1. CONFIGURAÇÃO COM AS CORES DEFINIDAS
+// 1. CONFIGURAÇÃO COM AS CORES
 const NUTRIENT_CONFIG: any = {
-    // Originais
     fiber: { label: 'Fibra', unit: 'g', color: 'teal' },
     sugar: { label: 'Açúcar', unit: 'g', color: 'pink' },
     sodium: { label: 'Sódio', unit: 'mg', color: 'slate' },
@@ -16,14 +15,17 @@ const NUTRIENT_CONFIG: any = {
     iron: { label: 'Ferro', unit: 'mg', color: 'red' },
     vitC: { label: 'Vit C', unit: 'mg', color: 'orange' },
     vitD: { label: 'Vit D', unit: 'iu', color: 'yellow' },
-    
-    // Novos
     magnesium: { label: 'Magnésio', unit: 'mg', color: 'emerald' },
     zinc: { label: 'Zinco', unit: 'mg', color: 'zinc' }, 
     omega3: { label: 'Ómega 3', unit: 'mg', color: 'cyan' },
     vitB12: { label: 'Vit B12', unit: 'mcg', color: 'blue' },
     vitB9: { label: 'Vit B9', unit: 'mcg', color: 'lime' },
     selenium: { label: 'Selénio', unit: 'mcg', color: 'rose' }
+};
+
+const formatVal = (val: number) => {
+    if (!val) return 0;
+    return val % 1 === 0 ? val : parseFloat(val.toFixed(1));
 };
 
 export default function HistoryPage() {
@@ -33,28 +35,37 @@ export default function HistoryPage() {
   const [viewDate, setViewDate] = useState(new Date());
   const [selectedLog, setSelectedLog] = useState<any>(null);
   const [history, setHistory] = useState<any[]>([]);
-  const [dailyLog, setDailyLog] = useState<any>({ calories: 0, meals: [] });
-  
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+
   // @ts-ignore
   const userGoals = session?.user?.goals || {};
   const goalCalories = userGoals.calories || 2000;
 
+  // 👇 NOVA LÓGICA: CARREGAR HISTÓRICO DA API (PARA NÃO DAR ERRO 431)
   useEffect(() => {
-    // @ts-ignore
-    if (session?.user) {
-       // @ts-ignore
-       setHistory(session.user.history || []);
-       // @ts-ignore
-       setDailyLog(session.user.dailyLog || { calories: 0, meals: [] });
-       
-       if (!selectedLog) {
-           // @ts-ignore
-           setSelectedLog(session.user.dailyLog || { calories: 0, date: new Date(), meals: [] });
-       }
+    async function fetchHistory() {
+        if (session?.user) {
+            try {
+                const res = await fetch('/api/user/get-history');
+                const data = await res.json();
+                
+                setHistory(data.history || []);
+                
+                // Se não houver log selecionado, seleciona o dia de hoje
+                if (!selectedLog && data.dailyLog) {
+                    setSelectedLog(data.dailyLog);
+                }
+            } catch (e) {
+                console.error("Erro ao carregar histórico");
+            } finally {
+                setIsLoadingHistory(false);
+            }
+        }
     }
+    fetchHistory();
   }, [session]);
 
-  if (status === "loading") return <div className="min-h-screen bg-black text-white p-6 text-center pt-20">A carregar...</div>;
+  if (status === "loading" || isLoadingHistory) return <div className="min-h-screen bg-black text-white p-6 text-center pt-20">A carregar...</div>;
   
   const daysInMonth = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0).getDate();
   const daysArray = Array.from({ length: daysInMonth }, (_, i) => i + 1);
@@ -71,23 +82,26 @@ export default function HistoryPage() {
     const targetMonth = viewDate.getMonth();
     const targetYear = viewDate.getFullYear();
 
+    // Procura no histórico da API
     const historyMatch = history.find((h: any) => {
       const d = new Date(h.date);
       return d.getDate() === day && d.getMonth() === targetMonth && d.getFullYear() === targetYear;
     });
     if (historyMatch) return historyMatch;
-
-    const activeLogDate = new Date(dailyLog.date || 0);
-    if (activeLogDate.getDate() === day && 
-        activeLogDate.getMonth() === targetMonth && 
-        activeLogDate.getFullYear() === targetYear) {
-        return dailyLog;
+    
+    // Fallback para o dia de hoje da sessão (se existir)
+    // @ts-ignore
+    const currentLog = session?.user?.dailyLog;
+    const activeLogDate = new Date(currentLog?.date || new Date());
+    if (currentLog && activeLogDate.getDate() === day && activeLogDate.getMonth() === targetMonth && activeLogDate.getFullYear() === targetYear) {
+        return currentLog;
     }
+    
     return null;
   };
 
   const checkSuccess = (current: number, target: number) => {
-      if (!target || target === 0) return false;
+      if (!target) return false;
       return current >= (target * 0.95) && current <= (target * 1.05);
   };
 
@@ -104,7 +118,6 @@ export default function HistoryPage() {
       return acc + (isSuccess ? 1 : 0);
   }, 0);
 
-  // Filtra APENAS os nutrientes que tu ativaste nas definições
   const activeExtras = Object.keys(NUTRIENT_CONFIG).filter(key => (userGoals[key] || 0) > 0);
 
   return (
@@ -198,12 +211,10 @@ export default function HistoryPage() {
 
                   {/* GRID DE BARRAS DE PROGRESSO */}
                   <div className="grid grid-cols-3 gap-3">
-                      {/* Macros Principais */}
                       <MacroBar label="Prot" val={selectedLog.protein} goal={userGoals.protein} />
                       <MacroBar label="Carb" val={selectedLog.carbs} goal={userGoals.carbs} />
                       <MacroBar label="Gord" val={selectedLog.fat} goal={userGoals.fat} />
 
-                      {/* Micros e Extras */}
                       {activeExtras.map(key => (
                           <MacroBar 
                             key={key}
@@ -234,13 +245,12 @@ export default function HistoryPage() {
                                     {Math.round(meal.carbs) > 0 && <MacroTag label="CARB" val={meal.carbs} color="green" />}
                                     {Math.round(meal.fat) > 0 && <MacroTag label="GORD" val={meal.fat} color="orange" />}
 
-                                    {/* 👇 AQUI APLICAMOS AS CORES ESPECÍFICAS DE VOLTA */}
+                                    {/* EXTRAS COLORIDOS */}
                                     {Object.keys(NUTRIENT_CONFIG).map(key => {
                                         if (['protein','carbs','fat'].includes(key)) return null;
                                         const val = meal[key];
                                         if (!val || val === 0) return null;
                                         
-                                        // Passamos a cor definida no config (ex: 'pink', 'teal')
                                         return <MacroTag key={key} label={NUTRIENT_CONFIG[key].label} val={val} unit={NUTRIENT_CONFIG[key].unit} color={NUTRIENT_CONFIG[key].color} />
                                     })}
                                   </div>
@@ -286,7 +296,7 @@ function MacroBar({ label, val = 0, goal = 0, unit = "g" }: any) {
             </div>
             <div className="z-10">
                 <p className={`text-xl font-black leading-none ${isMet ? 'text-green-400' : 'text-white'}`}>
-                    {Math.round(val)}<span className="text-[10px] text-zinc-500 font-bold ml-0.5">{unit}</span>
+                    {formatVal(val)}<span className="text-[10px] text-zinc-500 font-bold ml-0.5">{unit}</span>
                 </p>
                 <p className="text-[9px] text-zinc-600 font-bold mt-1">
                     Meta: {goal}{unit}
@@ -302,33 +312,28 @@ function MacroBar({ label, val = 0, goal = 0, unit = "g" }: any) {
     )
 }
 
-// 👇 2. TAGS COLORIDAS (ESTILO NEON PARA O MODO ESCURO)
+// TAGS COLORIDAS
 function MacroTag({ label, val, unit="g", color }: any) {
     const colors: any = {
-        // Cores personalizadas (Fundo Transparente + Texto Brilhante + Borda Suave)
         blue: "bg-blue-500/10 text-blue-400 border border-blue-500/20",
         green: "bg-green-500/10 text-green-400 border border-green-500/20",
         orange: "bg-orange-500/10 text-orange-400 border border-orange-500/20",
-        
-        // Cores dos Nutrientes (Mapeadas do NUTRIENT_CONFIG)
         teal: "bg-teal-500/10 text-teal-400 border border-teal-500/20",
-        pink: "bg-pink-500/10 text-pink-400 border border-pink-500/20",
-        slate: "bg-slate-500/10 text-slate-300 border border-slate-500/20",
-        purple: "bg-purple-500/10 text-purple-400 border border-purple-500/20",
-        indigo: "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20",
-        stone: "bg-stone-500/10 text-stone-300 border border-stone-500/20",
-        red: "bg-red-500/10 text-red-400 border border-red-500/20",
-        yellow: "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20",
-        emerald: "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20",
-        zinc: "bg-zinc-700/30 text-zinc-300 border border-zinc-600/50", // Cinza especial
+        pink: "bg-pink-500/10 text-pink-400 border-pink-500/20",
+        slate: "bg-slate-500/10 text-slate-300 border-slate-500/20",
+        purple: "bg-purple-500/10 text-purple-400 border-purple-500/20",
+        indigo: "bg-indigo-500/10 text-indigo-400 border-indigo-500/20",
+        stone: "bg-stone-500/10 text-stone-300 border-stone-500/20",
+        red: "bg-red-500/10 text-red-400 border-red-500/20",
+        yellow: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
+        emerald: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+        zinc: "bg-zinc-700/30 text-zinc-300 border border-zinc-600/50", 
         cyan: "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20",
-        lime: "bg-lime-500/10 text-lime-400 border border-lime-500/20",
-        rose: "bg-rose-500/10 text-rose-400 border border-rose-500/20",
-        
-        gray: "bg-zinc-800 text-zinc-400 border border-zinc-700" // Fallback
+        lime: "bg-lime-500/10 text-lime-400 border-lime-500/20",
+        rose: "bg-rose-500/10 text-rose-400 border-rose-500/20",
+        gray: "bg-zinc-800 text-zinc-400 border border-zinc-700" 
     };
     
-    // Pequeno ponto colorido ao lado (Opcional, dá um toque fixe)
     const dotColors: any = {
         blue: "bg-blue-500", green: "bg-green-500", orange: "bg-orange-500",
         teal: "bg-teal-500", pink: "bg-pink-500", slate: "bg-slate-400",
@@ -343,7 +348,7 @@ function MacroTag({ label, val, unit="g", color }: any) {
     return (
         <span className={`text-[10px] font-bold px-2 py-1 rounded-md flex items-center gap-1.5 leading-none ${activeColor}`}>
             <div className={`w-1.5 h-1.5 rounded-full ${activeDot}`}></div>
-            {label.toUpperCase().slice(0, 4)} {Math.round(val)}{unit}
+            {label.toUpperCase().slice(0, 4)} {formatVal(val)}{unit}
         </span>
     )
 }
