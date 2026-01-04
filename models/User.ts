@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-// Esquema da Refeição Individual (Já estava bem, mas confirmamos)
+// Esquema da Refeição Individual
 const MealSchema = new mongoose.Schema({
   name: String,
   calories: Number,
@@ -8,7 +8,7 @@ const MealSchema = new mongoose.Schema({
   carbs: Number,
   fat: Number,
   
-  // Nutrientes Clássicos
+  // Nutrientes Detalhados
   fiber: Number,
   sugar: Number,
   sodium: Number,
@@ -18,8 +18,6 @@ const MealSchema = new mongoose.Schema({
   iron: Number,
   vitC: Number,
   vitD: Number,
-
-  // Novos Nutrientes
   magnesium: Number,
   zinc: Number,
   omega3: Number,
@@ -30,7 +28,7 @@ const MealSchema = new mongoose.Schema({
   time: String 
 });
 
-// 👇 AQUI ESTAVA O PROBLEMA: FALTAVAM CAMPOS NO 'DayLogSchema'
+// 👇 AQUI É IMPORTANTE: O Esquema do Dia tem de ter os Totais também!
 const DayLogSchema = new mongoose.Schema({
   date: Date,
   calories: Number,
@@ -38,24 +36,22 @@ const DayLogSchema = new mongoose.Schema({
   carbs: Number,
   fat: Number,
   
-  // Totais do dia (Adicionei todos os que faltavam!)
-  fiber: Number,
-  sugar: Number,
-  sodium: Number,
-  cholesterol: Number,
-  potassium: Number,
-  calcium: Number,
-  iron: Number,
-  vitC: Number,
-  vitD: Number,
-  
-  // Novos Totais
-  magnesium: Number,
-  zinc: Number,
-  omega3: Number,
-  vitB12: Number,
-  vitB9: Number,
-  selenium: Number,
+  // Totais do Dia (Estavam a faltar alguns aqui)
+  fiber: { type: Number, default: 0 },
+  sugar: { type: Number, default: 0 },
+  sodium: { type: Number, default: 0 },
+  cholesterol: { type: Number, default: 0 },
+  potassium: { type: Number, default: 0 },
+  calcium: { type: Number, default: 0 },
+  iron: { type: Number, default: 0 },
+  vitC: { type: Number, default: 0 },
+  vitD: { type: Number, default: 0 },
+  magnesium: { type: Number, default: 0 },
+  zinc: { type: Number, default: 0 },
+  omega3: { type: Number, default: 0 },
+  vitB12: { type: Number, default: 0 },
+  vitB9: { type: Number, default: 0 },
+  selenium: { type: Number, default: 0 },
   
   meals: [MealSchema], 
   metGoal: Boolean
@@ -79,12 +75,12 @@ const UserSchema = new mongoose.Schema({
     bodyFat: Number
   },
   
-  // Metas do utilizador
   goals: {
     calories: Number,
     protein: Number,
     carbs: Number,
     fat: Number,
+    // Metas opcionais
     fiber: Number,
     sugar: Number,
     sodium: Number,
@@ -94,7 +90,6 @@ const UserSchema = new mongoose.Schema({
     iron: Number,
     vitC: Number,
     vitD: Number,
-    // Novos
     magnesium: Number,
     zinc: Number,
     omega3: Number,
@@ -108,7 +103,6 @@ const UserSchema = new mongoose.Schema({
   onboardingCompleted: { type: Boolean, default: false },
 }, { timestamps: true });
 
-// Evita erro de re-compilação do modelo
 const User = mongoose.models.User || mongoose.model("User", UserSchema);
 
 export default User;

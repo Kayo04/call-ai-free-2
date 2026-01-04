@@ -16,12 +16,12 @@ export async function POST(req: Request) {
 
     if (!user) return NextResponse.json({ message: "Utilizador não encontrado" }, { status: 404 });
 
-    // Garante que o dailyLog existe
+    // Inicializa o dia se não existir
     if (!user.dailyLog) {
         user.dailyLog = { date: new Date(), meals: [], calories: 0, protein: 0, carbs: 0, fat: 0 };
     }
 
-    // 1. Criar a Refeição (Mapeando os nomes da IA para a BD)
+    // 1. Criar a nova refeição
     const newMeal = {
         name: data.name,
         calories: Number(data.calories) || 0,
@@ -29,7 +29,7 @@ export async function POST(req: Request) {
         carbs: Number(data.carbs) || 0,
         fat: Number(data.fat) || 0,
         
-        // Nutrientes Clássicos
+        // Nutrientes
         fiber: Number(data.fiber) || 0,
         sugar: Number(data.sugar) || 0,
         sodium: Number(data.sodium) || 0,
@@ -39,8 +39,6 @@ export async function POST(req: Request) {
         iron: Number(data.iron) || 0,
         vitC: Number(data.vitC) || 0,
         vitD: Number(data.vitD) || 0,
-
-        // 👇 NOVOS (Atenção: A IA manda 'magnesio'/'zinco', a BD guarda 'magnesium'/'zinc')
         magnesium: Number(data.magnesium) || 0,
         zinc: Number(data.zinc) || 0,
         omega3: Number(data.omega3) || 0,
@@ -51,39 +49,43 @@ export async function POST(req: Request) {
         time: data.time || new Date().toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })
     };
 
-    // Adiciona à lista de refeições
     user.dailyLog.meals.push(newMeal);
 
-    // 2. SOMAR TUDO AO TOTAL DO DIA (Era aqui que faltava código!)
+    // 2. SOMAR AOS TOTAIS DO DIA (AQUI ESTAVA A FALHA!)
     user.dailyLog.calories += newMeal.calories;
     user.dailyLog.protein += newMeal.protein;
     user.dailyLog.carbs += newMeal.carbs;
     user.dailyLog.fat += newMeal.fat;
     
-    // Somas dos Micros Antigos
+    // Soma de TODOS os micros (Garante que se existir valor, soma; senão, soma 0)
     user.dailyLog.fiber = (user.dailyLog.fiber || 0) + newMeal.fiber;
     user.dailyLog.sugar = (user.dailyLog.sugar || 0) + newMeal.sugar;
     user.dailyLog.sodium = (user.dailyLog.sodium || 0) + newMeal.sodium;
+    user.dailyLog.cholesterol = (user.dailyLog.cholesterol || 0) + newMeal.cholesterol;
+    user.dailyLog.potassium = (user.dailyLog.potassium || 0) + newMeal.potassium;
+    user.dailyLog.calcium = (user.dailyLog.calcium || 0) + newMeal.calcium;
+    user.dailyLog.iron = (user.dailyLog.iron || 0) + newMeal.iron;
+    user.dailyLog.vitC = (user.dailyLog.vitC || 0) + newMeal.vitC;
+    user.dailyLog.vitD = (user.dailyLog.vitD || 0) + newMeal.vitD;
+    user.dailyLog.magnesium = (user.dailyLog.magnesium || 0) + newMeal.magnesium;
+    user.dailyLog.zinc = (user.dailyLog.zinc || 0) + newMeal.zinc;
+    user.dailyLog.omega3 = (user.dailyLog.omega3 || 0) + newMeal.omega3;
+    user.dailyLog.vitB12 = (user.dailyLog.vitB12 || 0) + newMeal.vitB12;
+    user.dailyLog.vitB9 = (user.dailyLog.vitB9 || 0) + newMeal.vitB9;
+    user.dailyLog.selenium = (user.dailyLog.selenium || 0) + newMeal.selenium;
     
-    // 👇 SOMAS DOS NOVOS (Isto vai corrigir os zeros no histórico!)
-    if (newMeal.magnesium) user.dailyLog.magnesium = (user.dailyLog.magnesium || 0) + newMeal.magnesium;
-    if (newMeal.zinc) user.dailyLog.zinc = (user.dailyLog.zinc || 0) + newMeal.zinc;
-    if (newMeal.omega3) user.dailyLog.omega3 = (user.dailyLog.omega3 || 0) + newMeal.omega3;
-    if (newMeal.vitB12) user.dailyLog.vitB12 = (user.dailyLog.vitB12 || 0) + newMeal.vitB12;
-    if (newMeal.vitB9) user.dailyLog.vitB9 = (user.dailyLog.vitB9 || 0) + newMeal.vitB9;
-    if (newMeal.selenium) user.dailyLog.selenium = (user.dailyLog.selenium || 0) + newMeal.selenium;
-    
-    // Somas das Vitaminas
-    if (newMeal.vitC) user.dailyLog.vitC = (user.dailyLog.vitC || 0) + newMeal.vitC;
-    if (newMeal.vitD) user.dailyLog.vitD = (user.dailyLog.vitD || 0) + newMeal.vitD;
-    
+    // Verifica se cumpriu a meta calórica
+    const goalCals = user.goals?.calories || 2000;
+    const isSuccess = user.dailyLog.calories >= (goalCals * 0.95) && user.dailyLog.calories <= (goalCals * 1.05);
+    user.dailyLog.metGoal = isSuccess;
+
     user.markModified('dailyLog');
     await user.save();
 
-    return NextResponse.json({ message: "Guardado com sucesso", dailyLog: user.dailyLog });
+    return NextResponse.json({ message: "Refeição guardada e somada!", dailyLog: user.dailyLog });
 
   } catch (error) {
-    console.error("Erro no servidor:", error);
-    return NextResponse.json({ message: "Erro ao guardar" }, { status: 500 });
+    console.error("Erro ao adicionar refeição:", error);
+    return NextResponse.json({ message: "Erro interno" }, { status: 500 });
   }
 }

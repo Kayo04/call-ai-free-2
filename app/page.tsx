@@ -101,10 +101,13 @@ export default function Home() {
       const payload: any = {
           name: dados.nome, 
           calories: dados.calorias, protein: dados.proteina, carbs: dados.hidratos, fat: dados.gordura,
+          
+          // Envia TODOS os nutrientes para o backend somar
           fiber: dados.fibra, sugar: dados.acucar, sodium: dados.sodio, cholesterol: dados.colesterol,
           potassium: dados.potassio, calcium: dados.calcio, iron: dados.ferro, vitC: dados.vitaminaC, vitD: dados.vitaminaD,
           magnesium: dados.magnesio, zinc: dados.zinco, omega3: dados.omega3,
           vitB12: dados.vitaminaB12, vitB9: dados.vitaminaB9, selenium: dados.selenio,
+          
           time: horaAtual 
       };
       
@@ -319,7 +322,7 @@ export default function Home() {
         {/* ÁREA DA CÂMARA (CORRIGIDA) */}
         <div className="relative w-full aspect-square bg-zinc-900 rounded-[2.5rem] shadow-sm overflow-hidden border border-zinc-800 mb-6">
           {imagem ? (
-            // 👇 AQUI ESTÁ A CORREÇÃO: object-contain em vez de object-cover
+            // 👇 CORREÇÃO: object-contain para não cortar
             <img src={imagem} className="w-full h-full object-contain" />
             ) : (
             <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-800 text-zinc-600">
