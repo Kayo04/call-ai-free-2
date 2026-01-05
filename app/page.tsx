@@ -96,12 +96,40 @@ export default function Home() {
     } catch (e) { alert("Erro na análise."); } finally { setLoading(false); }
   };
 
+  // 👇 AQUI ESTAVA O PROBLEMA! CORRIGIDO COM MAPEAMENTO MANUAL
   const adicionarAoDiario = async () => {
     if (!dados) return;
     setAddStatus('loading');
     try {
       const horaAtual = new Date().toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
-      const payload: any = { ...dados, time: horaAtual };
+      
+      // TRADUÇÃO DE PORTUGUÊS (IA) PARA INGLÊS (DB)
+      const payload: any = {
+          name: dados.nome,
+          calories: dados.calorias, // PT -> EN
+          protein: dados.proteina,  // PT -> EN
+          carbs: dados.hidratos,    // PT -> EN
+          fat: dados.gordura,       // PT -> EN
+          
+          // Micros (Maioria dos nomes são iguais, mas garantimos)
+          fiber: dados.fibra,
+          sugar: dados.acucar,
+          sodium: dados.sodio,
+          cholesterol: dados.colesterol,
+          potassium: dados.potassio,
+          calcium: dados.calcio,
+          iron: dados.ferro,
+          vitC: dados.vitaminaC,
+          vitD: dados.vitaminaD,
+          magnesium: dados.magnesio,
+          zinc: dados.zinco,
+          omega3: dados.omega3,
+          vitB12: dados.vitaminaB12,
+          vitB9: dados.vitaminaB9,
+          selenium: dados.selenio,
+
+          time: horaAtual 
+      };
       
       const res = await fetch('/api/user/add-meal', { method: 'POST', body: JSON.stringify(payload) });
       const json = await res.json();
@@ -292,7 +320,6 @@ export default function Home() {
             </div>
             
             <div className="grid grid-cols-2 gap-3 mb-4">
-              {/* 👇 MUDANÇA: SÓ MOSTRA SE O VALOR FOR > 0 */}
               {dados.calorias > 0 && <MacroCard icon="🔥" label="Calorias" val={dados.calorias} unit="kcal" />}
               {dados.proteina > 0 && <MacroCard icon="🥩" label="Proteína" val={dados.proteina} unit="g" />}
               {dados.hidratos > 0 && <MacroCard icon="🌾" label="Carbs" val={dados.hidratos} unit="g" />}
